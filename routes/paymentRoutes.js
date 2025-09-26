@@ -23,10 +23,7 @@ router.get('/papers/:paperId', authenticateToken, async (req, res) => {
     }
     
     const [payments] = await pool.execute(
-      `SELECT p.*, a.name AS author_name 
-       FROM payments p 
-       JOIN authors a ON p.author_id = a.author_id 
-       WHERE p.paper_id = ?`,
+      `SELECT * FROM payment_details WHERE paper_id = ?`,
       [paperId]
     );
     

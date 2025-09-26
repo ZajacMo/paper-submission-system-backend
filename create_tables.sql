@@ -109,6 +109,33 @@ CREATE TABLE `checks` (
     ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
+-- 创建统一认证表
+CREATE TABLE `users` (
+  `user_id` INT NOT NULL AUTO_INCREMENT,
+  `email` VARCHAR(100) NOT NULL,
+  `password_hash` VARCHAR(255) NOT NULL,
+  `password_salt` VARCHAR(255) NOT NULL,
+  `password_updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `status` ENUM('Active', 'Inactive', 'Locked') NOT NULL DEFAULT 'Active',
+  `last_login` DATETIME NULL,
+  PRIMARY KEY (`user_id`),
+  UNIQUE INDEX `email_UNIQUE` (`email` ASC)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+-- 创建用户角色关联表
+CREATE TABLE `user_roles` (
+  `user_id` INT NOT NULL,
+  `role_name` ENUM('author', 'expert', 'editor') NOT NULL,
+  `related_id` INT NOT NULL, -- 关联到对应角色表的主键ID
+  PRIMARY KEY (`user_id`, `role_name`),
+  CONSTRAINT `fk_user_roles_users`
+    FOREIGN KEY (`user_id`)
+    REFERENCES `users` (`user_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+
 -- 创建论文表 (papers)
 CREATE TABLE `papers` (
   `paper_id` INT NOT NULL AUTO_INCREMENT,

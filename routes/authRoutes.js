@@ -20,9 +20,12 @@ router.post('/login', async (req, res) => {
 
 // 检查令牌有效性
 router.get('/check-auth', (req, res) => {
+  // 从请求头中获取 Authorization 字段，该字段通常用于携带认证令牌
+  // console.log('Check-auth request headers:', req.headers);
   const authHeader = req.headers['authorization'];
+  // 若 Authorization 字段存在，则从该字段中提取令牌。
+  // console.log('Authorization header:', authHeader);
   const token = authHeader && authHeader.split(' ')[1];
-  
   if (token) {
     res.json({ authenticated: true });
   } else {

@@ -7,10 +7,7 @@ const { authenticateToken, authorizeRole } = require('../auth');
 router.get('/assignments', authenticateToken, authorizeRole(['expert']), async (req, res) => {
   try {
     const [assignments] = await pool.execute(
-      `SELECT ra.*, p.title_zh, p.title_en 
-       FROM review_assignments ra
-       JOIN papers p ON ra.paper_id = p.paper_id
-       WHERE ra.expert_id = ?`,
+      `SELECT * FROM expert_review_assignments WHERE expert_id = ?`,
       [req.user.id]
     );
     
@@ -86,10 +83,7 @@ router.get('/papers/:paperId/comments', authenticateToken, async (req, res) => {
     }
     
     const [comments] = await pool.execute(
-      `SELECT ra.conclusion, ra.positive_comments, ra.negative_comments, ra.modification_advice, e.name AS expert_name, ra.submission_date
-       FROM review_assignments ra
-       JOIN experts e ON ra.expert_id = e.expert_id
-       WHERE ra.paper_id = ?`,
+      `SELECT * FROM paper_review_comments WHERE paper_id = ?`,
       [paperId]
     );
     

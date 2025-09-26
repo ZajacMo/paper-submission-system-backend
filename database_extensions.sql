@@ -102,6 +102,47 @@ LEFT JOIN
 LEFT JOIN 
   `editors` ed ON ra.`editor_id` = ed.`editor_id`;
 
+-- 5. 作者论文视图（获取特定作者的所有论文）
+CREATE VIEW `author_papers` AS
+SELECT 
+  p.*,
+  pai.`author_id`,
+  pai.`is_corresponding`
+FROM 
+  `papers` p
+INNER JOIN 
+  `paper_authors_institutions` pai ON p.`paper_id` = pai.`paper_id`;
+
+-- 6. 论文支付详情视图
+CREATE VIEW `payment_details` AS
+SELECT 
+  p.*,
+  a.name AS author_name 
+FROM payments p 
+JOIN authors a ON p.author_id = a.author_id;
+
+-- 7. 专家审稿任务视图
+CREATE VIEW `expert_review_assignments` AS
+SELECT 
+  ra.*,
+  p.title_zh,
+  p.title_en 
+FROM review_assignments ra
+JOIN papers p ON ra.paper_id = p.paper_id;
+
+-- 8. 论文审稿意见视图
+CREATE VIEW `paper_review_comments` AS
+SELECT 
+  ra.conclusion,
+  ra.positive_comments,
+  ra.negative_comments,
+  ra.modification_advice,
+  e.name AS expert_name,
+  ra.submission_date,
+  ra.paper_id
+FROM review_assignments ra
+JOIN experts e ON ra.expert_id = e.expert_id;
+
 -- ========================== 索引设计 ==========================
 
 -- 1. 为常用查询字段添加索引

@@ -9,12 +9,7 @@ router.get('/', authenticateToken, async (req, res) => {
     let query, params;
     
     if (req.user.role === 'author') {
-      query = `
-        SELECT p.* 
-        FROM papers p
-        JOIN paper_authors_institutions pai ON p.paper_id = pai.paper_id
-        WHERE pai.author_id = ?
-      `;
+      query = 'SELECT * FROM author_papers WHERE author_id = ?';
       params = [req.user.id];
     } else {
       query = 'SELECT * FROM papers';
