@@ -48,13 +48,13 @@ async function login(email, password, role) {
     
     switch (role) {
       case 'author':
-        query = 'SELECT author_id AS id, email, name FROM authors WHERE email = ?';
+        query = 'SELECT author_id AS id, email, name, password FROM authors WHERE email = ?';
         break;
       case 'expert':
-        query = 'SELECT expert_id AS id, email, name FROM experts WHERE email = ?';
+        query = 'SELECT expert_id AS id, email, name, password FROM experts WHERE email = ?';
         break;
       case 'editor':
-        query = 'SELECT editor_id AS id, email, name FROM editors WHERE email = ?';
+        query = 'SELECT editor_id AS id, email, name, password FROM editors WHERE email = ?';
         break;
       default:
         throw new Error('无效的用户角色');
@@ -69,9 +69,16 @@ async function login(email, password, role) {
     
     const user = users[0];
     
-    // 注意：在实际系统中，应该使用bcrypt验证密码
-    // 这里为了简化，假设密码存储在数据库中（实际应该存储哈希值）
-    // 由于现有数据库表中没有密码字段，这里简化处理
+    // 使用bcrypt验证密码
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
+      throw new Error('密码错误');
+    }
+    
+    // 移除密码信息，不返回给前端
+    delete user.password;
+    
     const userWithRole = {
       ...user,
       role

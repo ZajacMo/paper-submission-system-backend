@@ -4,6 +4,7 @@ CREATE TABLE `authors` (
   `name` VARCHAR(100) NOT NULL,
   `age` TINYINT UNSIGNED NULL,
   `email` VARCHAR(100) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
   `degree` VARCHAR(50) NULL,
   `title` VARCHAR(50) NULL,
   `hometown` VARCHAR(100) NULL,
@@ -44,9 +45,9 @@ CREATE TABLE `author_institutions` (
 -- 创建专家表 (experts)
 CREATE TABLE `experts` (
   `expert_id` INT NOT NULL AUTO_INCREMENT,
+  `password` VARCHAR(255) NOT NULL,
   `name` VARCHAR(100) NOT NULL,
   `title` VARCHAR(50) NULL,
-  `institution_id` INT NULL,
   `email` VARCHAR(100) NOT NULL,
   `phone` VARCHAR(20) NULL,
   `research_areas` TEXT NULL,
@@ -87,52 +88,9 @@ CREATE TABLE `editors` (
   `editor_id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(100) NOT NULL,
   `email` VARCHAR(100) NOT NULL,
+  `password` VARCHAR(255) NOT NULL,
   PRIMARY KEY (`editor_id`),
   UNIQUE INDEX `email_UNIQUE` (`email` ASC)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-
--- 创建检查表
-CREATE TABLE `checks` (
-  `editor_id` INT NOT NULL,
-  `paper_id` INT NOT NULL,
-  PRIMARY KEY (`editor_id`, `paper_id`),
-  INDEX `fk_checks_papers_idx` (`paper_id` ASC),
-  CONSTRAINT `fk_checks_editors`
-    FOREIGN KEY (`editor_id`)
-    REFERENCES `editors` (`editor_id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  CONSTRAINT `fk_checks_papers`
-    FOREIGN KEY (`paper_id`)
-    REFERENCES `papers` (`paper_id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-
--- 创建统一认证表
-CREATE TABLE `users` (
-  `user_id` INT NOT NULL AUTO_INCREMENT,
-  `email` VARCHAR(100) NOT NULL,
-  `password_hash` VARCHAR(255) NOT NULL,
-  `password_salt` VARCHAR(255) NOT NULL,
-  `password_updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `status` ENUM('Active', 'Inactive', 'Locked') NOT NULL DEFAULT 'Active',
-  `last_login` DATETIME NULL,
-  PRIMARY KEY (`user_id`),
-  UNIQUE INDEX `email_UNIQUE` (`email` ASC)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-
--- 创建用户角色关联表
-CREATE TABLE `user_roles` (
-  `user_id` INT NOT NULL,
-  `role_name` ENUM('author', 'expert', 'editor') NOT NULL,
-  `related_id` INT NOT NULL, -- 关联到对应角色表的主键ID
-  PRIMARY KEY (`user_id`, `role_name`),
-  CONSTRAINT `fk_user_roles_users`
-    FOREIGN KEY (`user_id`)
-    REFERENCES `users` (`user_id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 
@@ -145,12 +103,9 @@ CREATE TABLE `papers` (
   `abstract_en` TEXT NOT NULL,
   `attachment_path` VARCHAR(500) NOT NULL,
   `submission_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `review_completion_date` DATETIME NULL,
   `progress` ENUM('Processing','Finished') NOT NULL DEFAULT 'Processing',
-  `status` ENUM('Submitted', 'Under Review', 'Major Revision', 'Minor Revision', 'Accepted', 'Rejected', 'Published') NOT NULL DEFAULT 'Submitted',
   `integrity` ENUM('True', 'False', 'Waiting') NOT NULL DEFAULT 'Waiting',
   `check_time` DATETIME NULL,
-  `deadline` DATETIME NULL,
   PRIMARY KEY (`paper_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
@@ -162,7 +117,9 @@ CREATE TABLE `keywords` (
   PRIMARY KEY (`keyword_id`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
--- 创建论文-关键词关联表 (paper_keywords)
+-- ========================
+
+-- 创建论文-关键词关联表 (paper_keywords)=======
 CREATE TABLE `paper_keywords` (
   `paper_id` INT NOT NULL,
   `keyword_id` INT NOT NULL,
@@ -180,7 +137,7 @@ CREATE TABLE `paper_keywords` (
     ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
--- 创建论文-作者-单位关联表 (paper_authors_institutions)
+-- 创建论文-作者-单位关联表 (paper_authors_institutions)========
 CREATE TABLE `paper_authors_institutions` (
   `paper_id` INT NOT NULL,
   `author_id` INT NOT NULL,
@@ -238,15 +195,11 @@ CREATE TABLE `review_assignments` (
   `paper_id` INT NOT NULL,
   `expert_id` INT NOT NULL,
   `editor_id` INT NOT NULL,
-  `assignment_path` VARCHAR(200) NOT NULL,
-  `assigned_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `due_date` DATETIME NULL,
-  `status` ENUM('Assigned', 'Completed', 'Overdue') NOT NULL DEFAULT 'Assigned',
-  `conclusion` ENUM('Accept', 'Minor Revision', 'Major Revision', 'Reject') NOT NULL,
+  `conclusion` ENUM('Accept', 'Minor Revision', 'Major Revision', 'Not Reviewed', 'Reject') NOT NULL,
   `positive_comments` TEXT NULL,
   `negative_comments` TEXT NULL,
   `modification_advice` TEXT NULL,
-  `submission_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `submission_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`assignment_id`),
   INDEX `fk_review_assignments_experts_idx` (`expert_id` ASC),
   INDEX `fk_review_assignments_editors_idx` (`editor_id` ASC),
@@ -269,55 +222,32 @@ CREATE TABLE `review_assignments` (
 
 -- 创建支付表 (payments)
 CREATE TABLE `payments` (
-  `payment_id` INT NOT NULL AUTO_INCREMENT,
   `paper_id` INT NOT NULL,
-  `author_id` INT NOT NULL,
   `amount` DECIMAL(10, 2) NOT NULL,
   `status` ENUM('Pending', 'Paid') NOT NULL DEFAULT 'Pending',
   `payment_date` DATETIME NULL,
-  `bank_account` VARCHAR(50) NULL,
-  PRIMARY KEY (`payment_id`),
   UNIQUE INDEX `paper_id_UNIQUE` (`paper_id` ASC),
-  UNIQUE INDEX `author_id_UNIQUE` (`author_id` ASC),
-  INDEX `fk_payments_authors_idx` (`author_id` ASC),
   CONSTRAINT `fk_payments_papers`
     FOREIGN KEY (`paper_id`)
     REFERENCES `papers` (`paper_id`)
     ON DELETE CASCADE
-    ON UPDATE CASCADE,
-  CONSTRAINT `fk_payments_authors`
-    FOREIGN KEY (`author_id`)
-    REFERENCES `authors` (`author_id`)
-    ON DELETE CASCADE
     ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
--- 创建银行卡信息表 (bank_accounts)
-CREATE TABLE `bank_accounts` (
-  `bank_account_id` INT NOT NULL AUTO_INCREMENT,
-  `bank_name` VARCHAR(100) NOT NULL,
-  `account_holder` VARCHAR(100) NOT NULL,
-  `bank_account_number` VARCHAR(50) NOT NULL,
-  PRIMARY KEY (`bank_account_id`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-
--- 创建专家提现记录表 (withdrawals)
+-- 创建专家提现表 (withdrawals)
 CREATE TABLE `withdrawals` (
-  `withdrawal_id` INT NOT NULL AUTO_INCREMENT,
+  `assignment_id` INT NOT NULL,
+  `status` BOOLEAN NOT NULL DEFAULT FALSE,
   `expert_id` INT NOT NULL,
-  `bank_account_id` INT NOT NULL,
-  `amount` DECIMAL(10, 2) NOT NULL,
-  `withdrawal_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`withdrawal_id`),
-  INDEX `fk_withdrawals_bank_accounts_idx` (`bank_account_id` ASC),
+  `withdrawal_date` DATETIME DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT `fk_withdrawals_experts`
     FOREIGN KEY (`expert_id`)
     REFERENCES `experts` (`expert_id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE,
-  CONSTRAINT `fk_withdrawals_bank_accounts`
-    FOREIGN KEY (`bank_account_id`)
-    REFERENCES `bank_accounts` (`bank_account_id`)
+  CONSTRAINT `fk_withdrawals_assignments`
+    FOREIGN KEY (`assignment_id`)
+    REFERENCES `review_assignments` (`assignment_id`)
     ON DELETE CASCADE
     ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
@@ -341,8 +271,27 @@ CREATE TABLE `schedules` (
 -- 创建通知表 (notifications)
 CREATE TABLE `notifications` (
   `notification_id` INT NOT NULL AUTO_INCREMENT,
-  `user_id` INT NOT NULL,
-  `notification_type` ENUM('Review Assignment', 'Review Conclusion', 'Payment Confirmation', 'Acceptance Notification', 'Rejection Notification') NOT NULL,
+  `paper_id` INT NOT NULL,
+  `notification_type` ENUM('Review Assignment', 'Payment Confirmation', 'Acceptance Notification', 'Rejection Notification') NOT NULL,
   `sent_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`notification_id`)
+  `deadline` DATETIME,
+  PRIMARY KEY (`notification_id`),
+  CONSTRAINT `fk_notifications_papers`
+    FOREIGN KEY (`paper_id`)
+    REFERENCES `papers` (`paper_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+-- 创建论文状态表 （status）
+CREATE TABLE `paper_status` (
+  `paper_id` INT NOT NULL,
+  `status` ENUM('Accept', 'Major Revision', 'Minor Revision', 'Reject', 'Not Reviewed') NOT NULL DEFAULT 'Not Reviewed',
+  `review_times` INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`paper_id`),
+  CONSTRAINT `fk_paper_status_papers`
+    FOREIGN KEY (`paper_id`)
+    REFERENCES `papers` (`paper_id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
