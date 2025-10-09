@@ -19,6 +19,7 @@ const paperRoutes = require('./routes/paperRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const userRoutes = require('./routes/userRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // API路由
 app.use('/api/auth', authRoutes);
@@ -26,6 +27,7 @@ app.use('/api/papers', paperRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // 健康检查端点
 app.get('/api/health', (req, res) => {

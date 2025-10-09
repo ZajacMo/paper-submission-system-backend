@@ -10,7 +10,14 @@ router.get('/profile', authenticateToken, async (req, res) => {
     
     switch (req.user.role) {
       case 'author':
-        query = 'SELECT * FROM authors WHERE author_id = ?';
+        // 作者信息包含所属单位
+        query = `SELECT a.*, GROUP_CONCAT(DISTINCT i.name SEPARATOR ', ') AS institution_names,
+                 GROUP_CONCAT(DISTINCT i.city SEPARATOR ', ') AS cities
+                 FROM authors a
+                 LEFT JOIN author_institutions ai ON a.author_id = ai.author_id
+                 LEFT JOIN institutions i ON ai.institution_id = i.institution_id
+                 WHERE a.author_id = ?
+                 GROUP BY a.author_id`;
         break;
       case 'expert':
         query = 'SELECT * FROM experts WHERE expert_id = ?';
@@ -29,7 +36,13 @@ router.get('/profile', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: '用户不存在' });
     }
     
-    res.json(users[0]);
+    // 移除敏感信息
+    const user = users[0];
+    if (user.password) {
+      delete user.password;
+    }
+    
+    res.json(user);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

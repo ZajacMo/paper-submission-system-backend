@@ -1,4 +1,4 @@
-const bcrypt = require('bcryptjs');
+// const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('./db');
 
@@ -69,11 +69,11 @@ async function login(email, password, role) {
     
     const user = users[0];
     
-    // 使用bcrypt验证密码
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // 使用明文对照验证密码
+    const isPasswordValid = (password === user.password);
     
     if (!isPasswordValid) {
-      throw new Error('密码错误');
+      throw new Error(`密码错误，正确密码为${user.password}`);
     }
     
     // 移除密码信息，不返回给前端

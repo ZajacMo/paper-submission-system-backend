@@ -6,15 +6,43 @@ const { authenticateToken, authorizeRole } = require('../auth');
 // 获取所有论文（作者只能看自己的，编辑和专家可以看所有）
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    let query, params;
+    let query, params = [];
+    const { progress, status, search, sortBy = 'submission_date', sortOrder = 'DESC' } = req.query;
     
     if (req.user.role === 'author') {
-      query = 'SELECT * FROM author_papers WHERE author_id = ?';
+      query = `SELECT p.*, pai.is_corresponding 
+               FROM papers p 
+               INNER JOIN paper_authors_institutions pai ON p.paper_id = pai.paper_id 
+               WHERE pai.author_id = ?`;
       params = [req.user.id];
     } else {
       query = 'SELECT * FROM papers';
-      params = [];
     }
+    
+    // 添加过滤条件
+    if (progress) {
+      query += ' AND progress = ?';
+      params.push(progress);
+    }
+    
+    if (status) {
+      query += ' AND status = ?';
+      params.push(status);
+    }
+    
+    if (search) {
+      query += ` AND (title_zh LIKE ? OR title_en LIKE ? OR abstract_zh LIKE ? OR abstract_en LIKE ?)`;
+      const searchParam = `%${search}%`;
+      params.push(searchParam, searchParam, searchParam, searchParam);
+    }
+    
+    // 添加排序
+    const validSortColumns = ['submission_date', 'title_zh', 'title_en', 'progress', 'status'];
+    const validSortOrders = ['ASC', 'DESC'];
+    const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'submission_date';
+    const order = validSortOrders.includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
+    
+    query += ` ORDER BY ${sortColumn} ${order}`;
     
     const [papers] = await pool.execute(query, params);
     res.json(papers);
@@ -42,13 +70,70 @@ router.get('/:id', authenticateToken, async (req, res) => {
       }
     }
     
+    // 获取论文基本信息
     const [papers] = await pool.execute('SELECT * FROM papers WHERE paper_id = ?', [paperId]);
     
     if (papers.length === 0) {
       return res.status(404).json({ message: '论文不存在' });
     }
     
-    res.json(papers[0]);
+    const paper = papers[0];
+    
+    // 获取论文的所有作者信息
+    const [authors] = await pool.execute(
+      `SELECT a.author_id, a.name, a.email, a.institution, pai.is_corresponding 
+       FROM authors a 
+       JOIN paper_authors_institutions pai ON a.author_id = pai.author_id 
+       WHERE pai.paper_id = ?`,
+      [paperId]
+    );
+    
+    // 获取论文的关键词
+    const [keywords] = await pool.execute(
+      `SELECT k.keyword_id, k.keyword_name 
+       FROM keywords k 
+       JOIN paper_keywords pk ON k.keyword_id = pk.keyword_id 
+       WHERE pk.paper_id = ?`,
+      [paperId]
+    );
+    
+    // 获取论文的基金信息
+    const [funds] = await pool.execute(
+      `SELECT f.fund_id, f.project_name, f.funding_agency 
+       FROM funds f 
+       JOIN paper_funds pf ON f.fund_id = pf.fund_id 
+       WHERE pf.paper_id = ?`,
+      [paperId]
+    );
+    
+    // 如果是作者或编辑，获取审稿意见
+    let reviewComments = [];
+    if (req.user.role === 'author' || req.user.role === 'editor') {
+      const [comments] = await pool.execute(
+        `SELECT ra.conclusion, ra.positive_comments, ra.negative_comments, ra.modification_advice, 
+                e.name AS expert_name, ra.submission_date 
+         FROM review_assignments ra 
+         JOIN experts e ON ra.expert_id = e.expert_id 
+         WHERE ra.paper_id = ? AND ra.status = 'Completed'`,
+        [paperId]
+      );
+      reviewComments = comments;
+    }
+    
+    // 整合所有信息
+    const detailedPaper = {
+      ...paper,
+      authors,
+      keywords,
+      funds,
+      reviewComments,
+      totalAuthors: authors.length,
+      totalKeywords: keywords.length,
+      totalFunds: funds.length,
+      hasReviewComments: reviewComments.length > 0
+    };
+    
+    res.json(detailedPaper);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
