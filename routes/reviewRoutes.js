@@ -17,18 +17,53 @@ router.get('/assignments', authenticateToken, authorizeRole(['expert']), async (
   }
 });
 
-// 编辑分配审稿任务
+// 编辑分配审稿任务并发送评审任务书
 router.post('/assignments', authenticateToken, authorizeRole(['editor']), async (req, res) => {
   try {
     const { paper_id, expert_id, due_date, assignment_path } = req.body;
     
+    // 验证必填字段
+    if (!paper_id || !expert_id || !due_date) {
+      return res.status(400).json({ message: '缺少必要的任务分配信息' });
+    }
+    
+    // 检查论文是否存在
+    const [papers] = await pool.execute('SELECT * FROM papers WHERE paper_id = ?', [paper_id]);
+    if (papers.length === 0) {
+      return res.status(404).json({ message: '论文不存在' });
+    }
+    
+    // 检查专家是否存在
+    const [experts] = await pool.execute('SELECT * FROM experts WHERE expert_id = ?', [expert_id]);
+    if (experts.length === 0) {
+      return res.status(404).json({ message: '专家不存在' });
+    }
+    
+    // 获取编辑信息
+    const [editors] = await pool.execute('SELECT * FROM editors WHERE editor_id = ?', [req.user.id]);
+    if (editors.length === 0) {
+      return res.status(404).json({ message: '编辑信息不存在' });
+    }
+    
+    const paper = papers[0];
+    const expert = experts[0];
+    const editor = editors[0];
+    
+    // 生成评审任务书内容（使用内置固定模板）
+    const assignmentContent = `评审任务书\n\n尊敬的${expert.name}专家：\n\n感谢您接受我们的邀请，担任学术期刊的审稿专家。\n\n现将论文《${paper.title_zh}》（英文标题：${paper.title_en}）提交给您评审，请您在${new Date(due_date).toLocaleString('zh-CN')}前完成评审工作。\n\n论文提交日期：${new Date(paper.submission_date).toLocaleString('zh-CN')}\n审稿费：￥${expert.review_fee}\n\n请您对论文的学术质量、创新性、方法论正确性等方面进行评价，并提出具体的修改建议。\n\n如有任何问题，请随时与我联系。\n\n${editor.name}\n学术期刊编辑部\n${new Date().toLocaleString('zh-CN')}`;
+    
+    // 将任务书内容保存到数据库
     const [result] = await pool.execute(
-      `INSERT INTO review_assignments (paper_id, expert_id, editor_id, due_date, assignment_path)
-       VALUES (?, ?, ?, ?, ?)`,
-      [paper_id, expert_id, req.user.id, due_date, assignment_path]
+      `INSERT INTO review_assignments (paper_id, expert_id, editor_id, due_date, assignment_path, assignment_content)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [paper_id, expert_id, req.user.id, due_date, assignment_path || null, assignmentContent]
     );
     
-    res.status(201).json({ message: '审稿任务分配成功', assignment_id: result.insertId });
+    res.status(201).json({
+      message: '审稿任务分配成功', 
+      assignment_id: result.insertId,
+      assignment_content: assignmentContent
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

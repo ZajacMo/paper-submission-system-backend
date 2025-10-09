@@ -26,7 +26,213 @@
 ## 数据库设计
 
 ### 表结构
-系统包含15个表，主要包括：
+## 后端API
+
+### 技术栈
+- Node.js + Express.js
+- MySQL
+
+### 功能模块
+1. 身份验证模块
+2. 论文管理模块
+3. 审稿管理模块
+4. 用户管理模块
+5. 支付管理模块
+6. 通知模块
+7. 排期管理模块
+
+### 接口文档
+
+#### 身份验证模块
+
+**登录**
+- **URL**: `/api/auth/login`
+- **Method**: `POST`
+- **Description**: 用户登录，获取JWT令牌
+- **Request Body**: `{"email": "string", "password": "string", "role": "author/expert/editor"}`
+- **Response**: `{"token": "string", "userId": "number", "role": "string"}`
+
+#### 论文管理模块
+
+**提交论文**
+- **URL**: `/api/papers`
+- **Method**: `POST`
+- **Description**: 作者提交论文
+- **Request Body**: `{"title": "string", "abstract": "string", "keywords": "string", "content": "string", "fund_ids": ["number"], "author_institutions": [{"author_id": "number", "institution_id": "number"}]}`
+- **Response**: `{"message": "string", "paper_id": "number"}`
+
+**获取论文列表**
+- **URL**: `/api/papers`
+- **Method**: `GET`
+- **Description**: 获取论文列表（根据用户角色返回不同范围的论文）
+- **Response**: `[{"paper_id": "number", "title": "string", "abstract": "string", "keywords": "string", "status": "string", "submission_date": "datetime"}]`
+
+**获取论文详情**
+- **URL**: `/api/papers/:id`
+- **Method**: `GET`
+- **Description**: 获取论文详情
+- **Response**: `{"paper_id": "number", "title": "string", "abstract": "string", "keywords": "string", "content": "string", "status": "string", "submission_date": "datetime", "authors": ["object"], "funds": ["object"]}`
+
+**更新论文**
+- **URL**: `/api/papers/:id`
+- **Method**: `PUT`
+- **Description**: 更新论文信息（作者只能更新部分字段，编辑/专家可更新更多字段）
+- **Request Body**: `{"title": "string", "abstract": "string", "keywords": "string", "content": "string"}`
+- **Response**: `{"message": "string"}`
+
+**论文完整性检查**
+- **URL**: `/api/papers/:id/integrity`
+- **Method**: `PUT`
+- **Description**: 编辑检查并更新论文的完整性状态
+- **Request Body**: `{"is_complete": "boolean"}`
+- **Response**: `{"message": "string", "is_complete": "boolean"}`
+
+#### 审稿管理模块
+
+**分配审稿任务**
+- **URL**: `/api/reviews/assign`
+- **Method**: `POST`
+- **Description**: 编辑分配审稿任务给专家，并生成评审任务书
+- **Request Body**: `{"paper_id": "number", "expert_id": "number"}`
+- **Response**: `{"message": "string", "assignment_id": "number"}`
+
+**提交审稿意见**
+- **URL**: `/api/reviews/submit`
+- **Method**: `POST`
+- **Description**: 专家提交审稿意见
+- **Request Body**: `{"assignment_id": "number", "conclusion": "Accept/Minor Revision/Major Revision/Reject", "positive_comments": "string", "negative_comments": "string", "modification_advice": "string"}`
+- **Response**: `{"message": "string"}`
+
+**查看审稿意见**
+- **URL**: `/api/reviews/:id`
+- **Method**: `GET`
+- **Description**: 查看审稿意见（编辑可查看所有，专家只能查看自己的）
+- **Response**: `{"assignment_id": "number", "paper_id": "number", "expert_id": "number", "conclusion": "string", "positive_comments": "string", "negative_comments": "string", "modification_advice": "string", "submission_date": "datetime"}`
+
+#### 用户管理模块
+
+**获取个人信息**
+- **URL**: `/api/users/profile`
+- **Method**: `GET`
+- **Description**: 获取当前登录用户的个人信息
+- **Response**: `{"name": "string", "email": "string", "phone": "string", "role": "string", "institutions": "string", "cities": "string", ...}`
+
+**更新个人信息**
+- **URL**: `/api/users/profile`
+- **Method**: `PUT`
+- **Description**: 更新当前登录用户的个人信息
+- **Request Body**: `{"name": "string", "email": "string", "phone": "string", ...}`
+- **Response**: `{"message": "string"}`
+
+**专家更新完整个人信息**
+- **URL**: `/api/users/profile` (专家角色)
+- **Method**: `PUT`
+- **Description**: 专家更新所有个人信息，包括银行账户信息
+- **Request Body**: `{"name": "string", "email": "string", "phone": "string", "title": "string", "research_areas": "string", "review_fee": "number", "bank_account": "string", "bank_name": "string", "account_holder": "string"}`
+- **Response**: `{"message": "string"}`
+
+#### 支付管理模块
+
+**创建支付记录**
+- **URL**: `/api/payments`
+- **Method**: `POST`
+- **Description**: 创建支付记录（用于作者支付审稿费）
+- **Request Body**: `{"paper_id": "number", "amount": "number"}`
+- **Response**: `{"message": "string"}`
+
+**更新支付状态**
+- **URL**: `/api/payments/:id/status`
+- **Method**: `PUT`
+- **Description**: 更新支付状态（编辑使用）
+- **Request Body**: `{"status": "Paid/Pending"}`
+- **Response**: `{"message": "string"}`
+
+**提现申请**
+- **URL**: `/api/payments/withdrawals`
+- **Method**: `POST`
+- **Description**: 专家提交审稿任务的提现申请
+- **Request Body**: `{"assignment_id": "number"}`
+- **Response**: `{"message": "string", "assignment_id": "number"}`
+
+**获取专家提现记录**
+- **URL**: `/api/payments/withdrawals`
+- **Method**: `GET`
+- **Description**: 专家获取自己的提现记录
+- **Response**: `[{"assignment_id": "number", "paper_id": "number", "paper_title": "string", "amount": "number", "status": "boolean", "withdrawal_date": "datetime", "bank_account": "string", "bank_name": "string", "account_holder": "string"}]`
+
+**处理提现申请**
+- **URL**: `/api/payments/withdrawals/:assignment_id/status`
+- **Method**: `PUT`
+- **Description**: 编辑处理专家的提现申请
+- **Request Body**: `{"status": "boolean"}`
+- **Response**: `{"message": "string"}`
+
+**获取所有提现记录**
+- **URL**: `/api/payments/admin/withdrawals`
+- **Method**: `GET`
+- **Description**: 编辑获取所有提现记录
+- **Response**: `[{"assignment_id": "number", "expert_name": "string", "paper_id": "number", "paper_title": "string", "amount": "number", "status": "boolean", "withdrawal_date": "datetime", "bank_account": "string", "bank_name": "string", "account_holder": "string"}]`
+
+#### 通知模块
+
+**获取作者通知**
+- **URL**: `/api/notifications/author`
+- **Method**: `GET`
+- **Description**: 作者获取自己的通知
+- **Response**: `[{"notification_id": "number", "paper_id": "number", "notification_type": "string", "sent_at": "datetime", "deadline": "datetime", "is_read": "boolean", "content": "string"}]`
+
+**发送通知给作者**
+- **URL**: `/api/notifications/author`
+- **Method**: `POST`
+- **Description**: 编辑发送通知给作者（支持录用/拒稿/修稿三种模板）
+- **Request Body**: `{"paper_id": "number", "notification_type": "Acceptance Notification/Rejection Notification/Major Revision", "content": "string", "deadline": "datetime"}`
+- **Response**: `{"message": "string", "notification_id": "number"}`
+
+**标记通知为已读**
+- **URL**: `/api/notifications/:id/read`
+- **Method**: `PUT`
+- **Description**: 标记通知为已读
+- **Response**: `{"message": "string"}`
+
+**获取未读通知数量**
+- **URL**: `/api/notifications/unread-count`
+- **Method**: `GET`
+- **Description**: 获取当前用户的未读通知数量
+- **Response**: `{"unread_count": "number"}`
+
+#### 排期管理模块
+
+**创建论文排期**
+- **URL**: `/api/schedules`
+- **Method**: `POST`
+- **Description**: 编辑为论文创建排期
+- **Request Body**: `{"paper_id": "number", "issue_number": "string", "volume_number": "string", "page_number": "string"}`
+- **Response**: `{"message": "string", "schedule_id": "number"}`
+
+**获取排期列表**
+- **URL**: `/api/schedules`
+- **Method**: `GET`
+- **Description**: 获取论文排期列表（编辑可查看所有，作者/专家只能查看自己相关的）
+- **Response**: `[{"schedule_id": "number", "paper_id": "number", "issue_number": "string", "volume_number": "string", "page_number": "string", "paper_title": "string"}]`
+
+**更新论文排期**
+- **URL**: `/api/schedules/:id`
+- **Method**: `PUT`
+- **Description**: 编辑更新论文排期
+- **Request Body**: `{"issue_number": "string", "volume_number": "string", "page_number": "string"}`
+- **Response**: `{"message": "string"}`
+
+**删除论文排期**
+- **URL**: `/api/schedules/:id`
+- **Method**: `DELETE`
+- **Description**: 编辑删除论文排期
+- **Response**: `{"message": "string"}`
+
+## 数据库设计
+
+### 表结构
+
+我们的系统包含15个表，主要包括：
 - authors：作者信息
 - institutions：单位信息
 - papers：论文信息

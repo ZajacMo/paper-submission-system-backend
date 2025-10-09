@@ -243,4 +243,36 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// 编辑进行论文完整性检查
+router.put('/:id/integrity', authenticateToken, authorizeRole(['editor']), async (req, res) => {
+  try {
+    const paperId = req.params.id;
+    const { integrity } = req.body;
+    
+    // 验证完整性状态
+    const validIntegrityStatuses = ['True', 'False', 'Waiting'];
+    if (!integrity || !validIntegrityStatuses.includes(integrity)) {
+      return res.status(400).json({ 
+        message: '无效的完整性状态，有效状态为：True, False, Waiting'
+      });
+    }
+    
+    // 检查论文是否存在
+    const [papers] = await pool.execute('SELECT * FROM papers WHERE paper_id = ?', [paperId]);
+    if (papers.length === 0) {
+      return res.status(404).json({ message: '论文不存在' });
+    }
+    
+    // 更新论文完整性状态和检查时间
+    const [result] = await pool.execute(
+      `UPDATE papers SET integrity = ?, check_time = CURRENT_TIMESTAMP WHERE paper_id = ?`,
+      [integrity, paperId]
+    );
+    
+    res.json({ message: '论文完整性检查完成' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

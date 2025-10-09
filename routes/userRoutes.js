@@ -20,7 +20,14 @@ router.get('/profile', authenticateToken, async (req, res) => {
                  GROUP BY a.author_id`;
         break;
       case 'expert':
-        query = 'SELECT * FROM experts WHERE expert_id = ?';
+        // 专家信息包含所属单位
+        query = `SELECT e.*, GROUP_CONCAT(DISTINCT i.name SEPARATOR ', ') AS institution_names,
+                 GROUP_CONCAT(DISTINCT i.city SEPARATOR ', ') AS cities
+                 FROM experts e
+                 LEFT JOIN expert_institutions ei ON e.expert_id = ei.expert_id
+                 LEFT JOIN institutions i ON ei.institution_id = i.institution_id
+                 WHERE e.expert_id = ?
+                 GROUP BY e.expert_id`;
         break;
       case 'editor':
         query = 'SELECT * FROM editors WHERE editor_id = ?';
@@ -74,8 +81,10 @@ router.put('/profile', authenticateToken, async (req, res) => {
         query = 'UPDATE experts SET name = ?, email = ?, phone = ?';
         params = [name, email, phone];
         
+        // 支持专家更新所有相关字段
         if (otherFields.title) { query += ', title = ?'; params.push(otherFields.title); }
         if (otherFields.research_areas) { query += ', research_areas = ?'; params.push(otherFields.research_areas); }
+        if (otherFields.review_fee) { query += ', review_fee = ?'; params.push(otherFields.review_fee); }
         if (otherFields.bank_account) { query += ', bank_account = ?'; params.push(otherFields.bank_account); }
         if (otherFields.bank_name) { query += ', bank_name = ?'; params.push(otherFields.bank_name); }
         if (otherFields.account_holder) { query += ', account_holder = ?'; params.push(otherFields.account_holder); }
@@ -93,7 +102,12 @@ router.put('/profile', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: '无效的用户角色' });
     }
     
-    await pool.execute(query, params);
+    const [result] = await pool.execute(query, params);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    
     res.json({ message: '用户信息更新成功' });
   } catch (error) {
     res.status(500).json({ message: error.message });
