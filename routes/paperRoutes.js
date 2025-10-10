@@ -25,11 +25,6 @@ router.get('/', authenticateToken, async (req, res) => {
       params.push(progress);
     }
     
-    if (status) {
-      query += ' AND status = ?';
-      params.push(status);
-    }
-    
     if (search) {
       query += ` AND (title_zh LIKE ? OR title_en LIKE ? OR abstract_zh LIKE ? OR abstract_en LIKE ?)`;
       const searchParam = `%${search}%`;
@@ -37,7 +32,7 @@ router.get('/', authenticateToken, async (req, res) => {
     }
     
     // 添加排序
-    const validSortColumns = ['submission_date', 'title_zh', 'title_en', 'progress', 'status'];
+    const validSortColumns = ['submission_date', 'title_zh', 'title_en', 'progress'];
     const validSortOrders = ['ASC', 'DESC'];
     const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'submission_date';
     const order = validSortOrders.includes(sortOrder.toUpperCase()) ? sortOrder.toUpperCase() : 'DESC';
@@ -81,9 +76,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
     
     // 获取论文的所有作者信息
     const [authors] = await pool.execute(
-      `SELECT a.author_id, a.name, a.email, a.institution, pai.is_corresponding 
+      `SELECT a.author_id, a.name, a.email, i.name AS institution_name, pai.is_corresponding 
        FROM authors a 
        JOIN paper_authors_institutions pai ON a.author_id = pai.author_id 
+       JOIN institutions i ON pai.institution_id = i.institution_id 
        WHERE pai.paper_id = ?`,
       [paperId]
     );
@@ -99,7 +95,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     
     // 获取论文的基金信息
     const [funds] = await pool.execute(
-      `SELECT f.fund_id, f.project_name, f.funding_agency 
+      `SELECT f.fund_id, f.project_name, f.project_number 
        FROM funds f 
        JOIN paper_funds pf ON f.fund_id = pf.fund_id 
        WHERE pf.paper_id = ?`,
@@ -231,9 +227,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
     } else {
       // 编辑和专家可以更新更多字段
       const [result] = await pool.execute(
-        `UPDATE papers SET title_zh = ?, title_en = ?, abstract_zh = ?, abstract_en = ?, attachment_path = ?, status = ?, progress = ?
+        `UPDATE papers SET title_zh = ?, title_en = ?, abstract_zh = ?, abstract_en = ?, attachment_path = ?, progress = ?
          WHERE paper_id = ?`,
-        [title_zh, title_en, abstract_zh, abstract_en, attachment_path, status, progress, paperId]
+        [title_zh, title_en, abstract_zh, abstract_en, attachment_path, progress, paperId]
       );
     }
     

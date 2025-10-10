@@ -494,13 +494,12 @@ npm run dev     # 开发环境启动（使用nodemon）
   {
     "paper_id": "论文ID",
     "expert_id": "专家ID",
-    "due_date": "截止日期",
-    "assignment_path": "任务文档路径"
+    "assigned_due_date": "截止日期"
   }
   ```
 
 **成功响应：**
-- 201: {"message": "审稿任务分配成功", "assignment_id": "新任务ID"}
+- 201: {"message": "审稿任务分配成功", "assignment_id": "新任务ID", "assignment_content": "任务书内容"}
 
 #### PUT /api/reviews/assignments/:id - 提交审稿意见
 **权限要求：** 专家角色

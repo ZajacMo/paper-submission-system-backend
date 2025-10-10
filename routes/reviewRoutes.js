@@ -58,8 +58,8 @@ router.post('/assignments', authenticateToken, authorizeRole(['editor']), async 
     
     // 创建审稿分配记录
     const [result] = await pool.execute(
-      `INSERT INTO review_assignments (paper_id, expert_id, editor_id, assigned_due_date)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO review_assignments (paper_id, expert_id, editor_id, assigned_due_date, conclusion)
+       VALUES (?, ?, ?, ?, 'Not Reviewed')`,
       [paper_id, expert_id, req.user.id, assigned_due_date]
     );
     
