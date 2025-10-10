@@ -7,7 +7,11 @@ const { authenticateToken, authorizeRole } = require('../auth');
 router.get('/assignments', authenticateToken, authorizeRole(['expert']), async (req, res) => {
   try {
     const [assignments] = await pool.execute(
-      `SELECT * FROM expert_review_assignments WHERE expert_id = ?`,
+      `SELECT ra.*, p.title_zh, p.title_en 
+       FROM review_assignments ra 
+       JOIN papers p ON ra.paper_id = p.paper_id 
+       WHERE ra.expert_id = ?
+       ORDER BY ra.assigned_date DESC`,
       [req.user.id]
     );
     
@@ -20,10 +24,10 @@ router.get('/assignments', authenticateToken, authorizeRole(['expert']), async (
 // 编辑分配审稿任务并发送评审任务书
 router.post('/assignments', authenticateToken, authorizeRole(['editor']), async (req, res) => {
   try {
-    const { paper_id, expert_id, due_date, assignment_path } = req.body;
+    const { paper_id, expert_id, assigned_due_date } = req.body;
     
     // 验证必填字段
-    if (!paper_id || !expert_id || !due_date) {
+    if (!paper_id || !expert_id || !assigned_due_date) {
       return res.status(400).json({ message: '缺少必要的任务分配信息' });
     }
     
@@ -50,13 +54,13 @@ router.post('/assignments', authenticateToken, authorizeRole(['editor']), async 
     const editor = editors[0];
     
     // 生成评审任务书内容（使用内置固定模板）
-    const assignmentContent = `评审任务书\n\n尊敬的${expert.name}专家：\n\n感谢您接受我们的邀请，担任学术期刊的审稿专家。\n\n现将论文《${paper.title_zh}》（英文标题：${paper.title_en}）提交给您评审，请您在${new Date(due_date).toLocaleString('zh-CN')}前完成评审工作。\n\n论文提交日期：${new Date(paper.submission_date).toLocaleString('zh-CN')}\n审稿费：￥${expert.review_fee}\n\n请您对论文的学术质量、创新性、方法论正确性等方面进行评价，并提出具体的修改建议。\n\n如有任何问题，请随时与我联系。\n\n${editor.name}\n学术期刊编辑部\n${new Date().toLocaleString('zh-CN')}`;
+    const assignmentContent = `评审任务书\n\n尊敬的${expert.name}专家：\n\n感谢您接受我们的邀请，担任学术期刊的审稿专家。\n\n现将论文《${paper.title_zh}》（英文标题：${paper.title_en}）提交给您评审，请您在${new Date(assigned_due_date).toLocaleString('zh-CN')}前完成评审工作。\n\n论文提交日期：${new Date(paper.submission_date).toLocaleString('zh-CN')}\n审稿费：￥${expert.review_fee}\n\n请您对论文的学术质量、创新性、方法论正确性等方面进行评价，并提出具体的修改建议。\n\n如有任何问题，请随时与我联系。\n\n${editor.name}\n学术期刊编辑部\n${new Date().toLocaleString('zh-CN')}`;
     
-    // 将任务书内容保存到数据库
+    // 创建审稿分配记录
     const [result] = await pool.execute(
-      `INSERT INTO review_assignments (paper_id, expert_id, editor_id, due_date, assignment_path, assignment_content)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [paper_id, expert_id, req.user.id, due_date, assignment_path || null, assignmentContent]
+      `INSERT INTO review_assignments (paper_id, expert_id, editor_id, assigned_due_date)
+       VALUES (?, ?, ?, ?)`,
+      [paper_id, expert_id, req.user.id, assigned_due_date]
     );
     
     res.status(201).json({
@@ -118,7 +122,10 @@ router.get('/papers/:paperId/comments', authenticateToken, async (req, res) => {
     }
     
     const [comments] = await pool.execute(
-      `SELECT * FROM paper_review_comments WHERE paper_id = ?`,
+      `SELECT ra.*, e.name AS expert_name 
+       FROM review_assignments ra 
+       JOIN experts e ON ra.expert_id = e.expert_id 
+       WHERE ra.paper_id = ? AND ra.status = 'Completed'`,
       [paperId]
     );
     

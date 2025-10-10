@@ -23,7 +23,7 @@ router.get('/papers/:paperId', authenticateToken, async (req, res) => {
     }
     
     const [payments] = await pool.execute(
-      `SELECT * FROM payment_details WHERE paper_id = ?`,
+      `SELECT * FROM payments WHERE paper_id = ?`,
       [paperId]
     );
     
@@ -36,15 +36,27 @@ router.get('/papers/:paperId', authenticateToken, async (req, res) => {
 // 创建支付记录（编辑）
 router.post('/', authenticateToken, authorizeRole(['editor']), async (req, res) => {
   try {
-    const { paper_id, author_id, amount, bank_account } = req.body;
+    const { paper_id, amount } = req.body;
+    
+    // 检查论文是否存在
+    const [papers] = await pool.execute('SELECT * FROM papers WHERE paper_id = ?', [paper_id]);
+    if (papers.length === 0) {
+      return res.status(404).json({ message: '论文不存在' });
+    }
+    
+    // 检查是否已经有支付记录
+    const [existingPayments] = await pool.execute('SELECT * FROM payments WHERE paper_id = ?', [paper_id]);
+    if (existingPayments.length > 0) {
+      return res.status(400).json({ message: '该论文已有支付记录' });
+    }
     
     const [result] = await pool.execute(
-      `INSERT INTO payments (paper_id, author_id, amount, bank_account)
-       VALUES (?, ?, ?, ?)`,
-      [paper_id, author_id, amount, bank_account]
+      `INSERT INTO payments (paper_id, amount)
+       VALUES (?, ?)`,
+      [paper_id, amount]
     );
     
-    res.status(201).json({ message: '支付记录创建成功', payment_id: result.insertId });
+    res.status(201).json({ message: '支付记录创建成功', paper_id });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
