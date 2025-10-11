@@ -300,6 +300,20 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
   try {
     const { title_zh, title_en, abstract_zh, abstract_en, attachment_path, authors, institutions, is_corresponding, keywords, funds } = req.body;
     
+    // 验证附件路径格式（如果提供了）
+    if (attachment_path) {
+      // 检查附件路径是否以'uploads/'开头
+      if (!attachment_path.startsWith('uploads/')) {
+        return res.status(400).json({ message: '附件路径格式不正确，必须以uploads/开头' });
+      }
+      
+      // 检查附件文件是否存在
+      const filePath = path.join(__dirname, '..', attachment_path);
+      if (!fs.existsSync(filePath)) {
+        return res.status(400).json({ message: '附件文件不存在，请先上传正确的附件' });
+      }
+    }
+    
     // 开始事务
     const connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -365,6 +379,31 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const paperId = req.params.id;
     const { title_zh, title_en, abstract_zh, abstract_en, attachment_path, progress } = req.body;
     
+    // 验证附件路径格式（如果提供了）
+    if (attachment_path) {
+      // 检查附件路径是否以'uploads/'开头
+      if (!attachment_path.startsWith('uploads/')) {
+        return res.status(400).json({ message: '附件路径格式不正确，必须以uploads/开头' });
+      }
+      
+      // 检查附件文件是否存在
+      const filePath = path.join(__dirname, '..', attachment_path);
+      if (!fs.existsSync(filePath)) {
+        return res.status(400).json({ message: '附件文件不存在，请先上传正确的附件' });
+      }
+    }
+    
+    // 获取旧的附件路径（如果有）
+    let oldAttachmentPath = null;
+    const [oldPaperData] = await pool.execute(
+      'SELECT attachment_path FROM papers WHERE paper_id = ?',
+      [paperId]
+    );
+    
+    if (oldPaperData.length > 0 && oldPaperData[0].attachment_path) {
+      oldAttachmentPath = oldPaperData[0].attachment_path;
+    }
+    
     // 检查用户是否有权限更新该论文
     if (req.user.role === 'author') {
       const [authorCheck] = await pool.execute(
@@ -391,6 +430,20 @@ router.put('/:id', authenticateToken, async (req, res) => {
          WHERE paper_id = ?`,
         [title_zh, title_en, abstract_zh, abstract_en, attachment_path, progress, paperId]
       );
+    }
+    
+    // 如果提供了新的附件路径并且与旧的不同，则删除旧附件
+    if (oldAttachmentPath && attachment_path && oldAttachmentPath !== attachment_path) {
+      const oldFilePath = path.join(__dirname, '..', oldAttachmentPath);
+      try {
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+          console.log(`旧附件已删除: ${oldFilePath}`);
+        }
+      } catch (deleteError) {
+        console.error('删除旧附件失败:', deleteError);
+        // 即使删除失败，也不影响论文更新的成功状态
+      }
     }
     
     res.json({ message: '论文更新成功' });
