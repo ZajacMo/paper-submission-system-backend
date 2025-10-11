@@ -3,19 +3,59 @@ const router = express.Router();
 const { pool } = require('../db');
 const { authenticateToken, authorizeRole } = require('../auth');
 
+// 解析视图中的连接字符串数据的辅助函数
+function parseConcatenatedData(data, separator = '|', fieldSeparator = ':') {
+  if (!data) return [];
+  return data.split(separator).map(item => {
+    const fields = item.split(fieldSeparator);
+    return fields;
+  });
+}
+
+// 解析作者信息
+function parseAuthorsInfo(authorsInfo) {
+  if (!authorsInfo) return [];
+  return parseConcatenatedData(authorsInfo).map(fields => ({
+    author_id: fields[0],
+    name: fields[1],
+    institution_name: fields[2],
+    is_corresponding: fields[3] === '1'
+  }));
+}
+
+// 解析关键词信息
+function parseKeywordsInfo(keywordsInfo) {
+  if (!keywordsInfo) return [];
+  return parseConcatenatedData(keywordsInfo).map(fields => ({
+    keyword_id: fields[0],
+    keyword_name: fields[1]
+  }));
+}
+
+// 解析基金信息
+function parseFundsInfo(fundsInfo) {
+  if (!fundsInfo) return [];
+  return parseConcatenatedData(fundsInfo).map(fields => ({
+    fund_id: fields[0],
+    project_name: fields[1],
+    project_number: fields[2]
+  }));
+}
+
 // 获取所有论文（作者只能看自己的，编辑和专家可以看所有）
 router.get('/', authenticateToken, async (req, res) => {
   try {
     let query, params = [];
-    const { progress, status, search, sortBy = 'submission_date', sortOrder = 'DESC' } = req.query;
+    const { progress, search, sortBy = 'submission_date', sortOrder = 'DESC' } = req.query;
     
     if (req.user.role === 'author') {
-      query = `SELECT p.*, pai.is_corresponding 
-               FROM papers p 
-               INNER JOIN paper_authors_institutions pai ON p.paper_id = pai.paper_id 
-               WHERE pai.author_id = ?`;
+      // 使用作者可访问论文视图
+      query = `SELECT DISTINCT p.* 
+               FROM author_accessible_papers p 
+               WHERE p.author_id = ?`;
       params = [req.user.id];
     } else {
+      // 编辑和专家查看所有论文
       query = 'SELECT * FROM papers';
     }
     
@@ -65,8 +105,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
       }
     }
     
-    // 获取论文基本信息
-    const [papers] = await pool.execute('SELECT * FROM papers WHERE paper_id = ?', [paperId]);
+    // 使用论文完整详情视图获取所有基本信息
+    const [papers] = await pool.execute('SELECT * FROM paper_full_details WHERE paper_id = ?', [paperId]);
     
     if (papers.length === 0) {
       return res.status(404).json({ message: '论文不存在' });
@@ -74,56 +114,33 @@ router.get('/:id', authenticateToken, async (req, res) => {
     
     const paper = papers[0];
     
-    // 获取论文的所有作者信息
-    const [authors] = await pool.execute(
-      `SELECT a.author_id, a.name, a.email, i.name AS institution_name, pai.is_corresponding 
-       FROM authors a 
-       JOIN paper_authors_institutions pai ON a.author_id = pai.author_id 
-       JOIN institutions i ON pai.institution_id = i.institution_id 
-       WHERE pai.paper_id = ?`,
-      [paperId]
-    );
-    
-    // 获取论文的关键词
-    const [keywords] = await pool.execute(
-      `SELECT k.keyword_id, k.keyword_name 
-       FROM keywords k 
-       JOIN paper_keywords pk ON k.keyword_id = pk.keyword_id 
-       WHERE pk.paper_id = ?`,
-      [paperId]
-    );
-    
-    // 获取论文的基金信息
-    const [funds] = await pool.execute(
-      `SELECT f.fund_id, f.project_name, f.project_number 
-       FROM funds f 
-       JOIN paper_funds pf ON f.fund_id = pf.fund_id 
-       WHERE pf.paper_id = ?`,
-      [paperId]
-    );
+    // 解析作者、关键词和基金信息
+    const authors = parseAuthorsInfo(paper.authors_info);
+    const keywords = parseKeywordsInfo(paper.keywords_info);
+    const funds = parseFundsInfo(paper.funds_info);
     
     // 如果是作者或编辑，获取审稿意见
     let reviewComments = [];
     if (req.user.role === 'author' || req.user.role === 'editor') {
       const [comments] = await pool.execute(
-        `SELECT ra.conclusion, ra.positive_comments, ra.negative_comments, ra.modification_advice, 
-                e.name AS expert_name, ra.submission_date, ra.status
-         FROM review_assignments ra 
-         JOIN experts e ON ra.expert_id = e.expert_id 
-         WHERE ra.paper_id = ? AND ra.status = 'Completed'`,
+        `SELECT * FROM paper_review_details WHERE paper_id = ? AND review_status = 'Completed'`,
         [paperId]
       );
       reviewComments = comments;
     }
-    
-    const [status] = await pool.execute(
-      `SELECT status, review_times FROM paper_status WHERE paper_id = ?`,
-      [paperId]
-    );
 
     // 整合所有信息
     const detailedPaper = {
-      ...paper,
+      paper_id: paper.paper_id,
+      title_zh: paper.title_zh,
+      title_en: paper.title_en,
+      abstract_zh: paper.abstract_zh,
+      abstract_en: paper.abstract_en,
+      attachment_path: paper.attachment_path,
+      submission_date: paper.submission_date,
+      progress: paper.progress,
+      integrity: paper.integrity,
+      check_time: paper.check_time,
       authors,
       keywords,
       funds,
@@ -132,8 +149,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
       totalKeywords: keywords.length,
       totalFunds: funds.length,
       hasReviewComments: reviewComments.length > 0,
-      status: status[0].status,
-      reviewTimes: status[0].review_times,
+      status: paper.paper_status,
+      reviewTimes: paper.review_times,
     };
     
     res.json(detailedPaper);
@@ -210,7 +227,7 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const paperId = req.params.id;
-    const { title_zh, title_en, abstract_zh, abstract_en, attachment_path, status, progress } = req.body;
+    const { title_zh, title_en, abstract_zh, abstract_en, attachment_path, progress } = req.body;
     
     // 检查用户是否有权限更新该论文
     if (req.user.role === 'author') {

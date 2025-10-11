@@ -58,6 +58,72 @@ LEFT JOIN
 GROUP BY 
   p.`paper_id`;
 
+-- 3. 作者论文视图（获取特定作者的所有论文及是否通讯作者信息）
+CREATE VIEW `author_papers_full` AS
+SELECT 
+  p.*,
+  pai.`is_corresponding`
+FROM 
+  `papers` p
+INNER JOIN 
+  `paper_authors_institutions` pai ON p.`paper_id` = pai.`paper_id`;
+
+-- 4. 论文完整详情视图（包含作者、关键词、基金、审稿意见和状态等完整信息）
+CREATE VIEW `paper_full_details` AS
+SELECT 
+  p.*,
+  ps.`status` AS `paper_status`,
+  ps.`review_times`,
+  GROUP_CONCAT(DISTINCT CONCAT(a.`author_id`, ':', a.`name`, ':', i.`name`, ':', IF(pai.`is_corresponding`, '1', '0')) ORDER BY a.`author_id` ASC SEPARATOR '|') AS `authors_info`,
+  GROUP_CONCAT(DISTINCT CONCAT(k.`keyword_id`, ':', k.`keyword_name`) SEPARATOR '|') AS `keywords_info`,
+  GROUP_CONCAT(DISTINCT CONCAT(f.`fund_id`, ':', f.`project_name`, ':', f.`project_number`) SEPARATOR '|') AS `funds_info`
+FROM 
+  `papers` p
+LEFT JOIN 
+  `paper_status` ps ON p.`paper_id` = ps.`paper_id`
+LEFT JOIN 
+  `paper_authors_institutions` pai ON p.`paper_id` = pai.`paper_id`
+LEFT JOIN 
+  `authors` a ON pai.`author_id` = a.`author_id`
+LEFT JOIN 
+  `institutions` i ON pai.`institution_id` = i.`institution_id`
+LEFT JOIN 
+  `paper_keywords` pk ON p.`paper_id` = pk.`paper_id`
+LEFT JOIN 
+  `keywords` k ON pk.`keyword_id` = k.`keyword_id`
+LEFT JOIN 
+  `paper_funds` pf ON p.`paper_id` = pf.`paper_id`
+LEFT JOIN 
+  `funds` f ON pf.`fund_id` = f.`fund_id`
+GROUP BY 
+  p.`paper_id`;
+
+-- 5. 论文审稿意见视图（包含专家审稿意见）
+CREATE VIEW `paper_review_details` AS
+SELECT 
+  ra.`paper_id`,
+  ra.`conclusion`,
+  ra.`positive_comments`,
+  ra.`negative_comments`,
+  ra.`modification_advice`,
+  e.`name` AS `expert_name`,
+  ra.`submission_date` AS `review_submission_date`,
+  ra.`status` AS `review_status`
+FROM 
+  `review_assignments` ra
+JOIN 
+  `experts` e ON ra.`expert_id` = e.`expert_id`;
+
+-- 6. 作者可查看的论文视图（包含权限过滤）
+CREATE VIEW `author_accessible_papers` AS
+SELECT DISTINCT
+  p.*,
+  pai.`author_id`
+FROM 
+  `papers` p
+INNER JOIN 
+  `paper_authors_institutions` pai ON p.`paper_id` = pai.`paper_id`;
+
 -- 3. 审稿专家信息视图
 CREATE VIEW `expert_with_institutions` AS
 SELECT 
@@ -96,18 +162,6 @@ LEFT JOIN
   `experts` e ON ra.`expert_id` = e.`expert_id`
 LEFT JOIN 
   `editors` ed ON ra.`editor_id` = ed.`editor_id`;
-
--- 5. 作者论文视图（获取特定作者的所有论文）
-CREATE VIEW `author_papers` AS
-SELECT 
-  p.*,
-  pai.`author_id`,
-  pai.`is_corresponding`
-FROM 
-  `papers` p
-INNER JOIN 
-  `paper_authors_institutions` pai ON p.`paper_id` = pai.`paper_id`;
-
 
 -- 7. 专家审稿任务视图（专家、编辑）
 CREATE VIEW `expert_review_assignments` AS
