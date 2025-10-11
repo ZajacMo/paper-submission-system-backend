@@ -71,7 +71,16 @@
 - **URL**: `/api/papers/:id`
 - **Method**: `GET`
 - **Description**: 获取论文详情
-- **Response**: `{"paper_id": "number", "title": "string", "abstract": "string", "keywords": "string", "content": "string", "status": "string", "submission_date": "datetime", "authors": ["object"], "funds": ["object"]}`
+- **Response**: `{
+    "paper_id": "number",
+    "title": "string",
+    "abstract": "string",
+    "keywords": "string",
+    "content": "string",
+    "status": "string",
+    "submission_date": "datetime",
+    "authors": ["object"],
+    "funds": ["object"]}`
 
 **更新论文**
 - **URL**: `/api/papers/:id`

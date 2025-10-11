@@ -107,7 +107,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     if (req.user.role === 'author' || req.user.role === 'editor') {
       const [comments] = await pool.execute(
         `SELECT ra.conclusion, ra.positive_comments, ra.negative_comments, ra.modification_advice, 
-                e.name AS expert_name, ra.submission_date 
+                e.name AS expert_name, ra.submission_date, ra.status
          FROM review_assignments ra 
          JOIN experts e ON ra.expert_id = e.expert_id 
          WHERE ra.paper_id = ? AND ra.status = 'Completed'`,
@@ -116,6 +116,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
       reviewComments = comments;
     }
     
+    const [status] = await pool.execute(
+      `SELECT status, review_times FROM paper_status WHERE paper_id = ?`,
+      [paperId]
+    );
+
     // 整合所有信息
     const detailedPaper = {
       ...paper,
@@ -126,7 +131,9 @@ router.get('/:id', authenticateToken, async (req, res) => {
       totalAuthors: authors.length,
       totalKeywords: keywords.length,
       totalFunds: funds.length,
-      hasReviewComments: reviewComments.length > 0
+      hasReviewComments: reviewComments.length > 0,
+      status: status[0].status,
+      reviewTimes: status[0].review_times,
     };
     
     res.json(detailedPaper);
