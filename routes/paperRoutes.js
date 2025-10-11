@@ -484,4 +484,62 @@ router.put('/:id/integrity', authenticateToken, authorizeRole(['editor']), async
   }
 });
 
+// 获取指定论文的审稿进度
+router.get('/:id/progress', authenticateToken, authorizeRole(['author', 'expert', 'editor']), async (req, res) => {
+  try {
+    const paperId = req.params.id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    
+    // 检查用户是否有权限访问此论文的进度
+    if (userRole === 'author') {
+      // 作者只能查看自己参与的论文进度
+      const [authorPapers] = await pool.execute(
+        `SELECT p.paper_id FROM papers p 
+         JOIN paper_authors_institutions pai ON p.paper_id = pai.paper_id 
+         WHERE p.paper_id = ? AND pai.author_id = ?`,
+        [paperId, userId]
+      );
+      
+      if (authorPapers.length === 0) {
+        return res.status(403).json({ message: '无权访问该论文的审稿进度' });
+      }
+    }
+    
+    // 查询论文审稿进度
+    const [progress] = await pool.execute(
+      `SELECT * FROM paper_review_progress WHERE paper_id = ?`,
+      [paperId]
+    );
+    
+    if (progress.length === 0) {
+      return res.status(404).json({ message: '未找到该论文的审稿进度' });
+    }
+    
+    res.json(progress[0]);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 获取当前用户所有论文的审稿进度（作者视角）
+router.get('/progress', authenticateToken, authorizeRole(['author']), async (req, res) => {
+  try {
+    const authorId = req.user.id;
+    
+    // 查询当前作者所有论文的审稿进度
+    const [progressList] = await pool.execute(
+      `SELECT prp.* FROM paper_review_progress prp
+       JOIN paper_authors_institutions pai ON prp.paper_id = pai.paper_id
+       WHERE pai.author_id = ?
+       ORDER BY prp.submission_time DESC`,
+      [authorId]
+    );
+    
+    res.json(progressList);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

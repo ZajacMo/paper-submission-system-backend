@@ -98,6 +98,71 @@ LEFT JOIN
 GROUP BY 
   p.`paper_id`;
 
+-- 5. 论文审稿进度视图（向作者展示论文的各阶段审稿进度）
+CREATE VIEW `paper_review_progress` AS
+SELECT 
+  p.`paper_id`,
+  p.`title_zh`,
+  p.`title_en`,
+  
+  -- 收稿阶段
+  CASE WHEN p.`attachment_path` IS NOT NULL THEN 'finished' ELSE 'processing' END AS `submission_stage`,
+  CASE WHEN p.`attachment_path` IS NOT NULL THEN p.`submission_date` ELSE NULL END AS `submission_time`,
+  
+  -- 初审阶段
+  CASE WHEN p.`check_time` IS NOT NULL THEN 'finished' ELSE 'processing' END AS `initial_review_stage`,
+  p.`check_time` AS `initial_review_time`,
+  
+  -- 评审阶段
+  CASE 
+    WHEN (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NOT NULL) >= 3 THEN 'finished'
+    ELSE 'processing'
+  END AS `review_stage`,
+  (SELECT MIN(top3_dates.`submission_date`) FROM (
+    SELECT `submission_date` FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NOT NULL ORDER BY `submission_date` ASC LIMIT 3
+  ) AS top3_dates ORDER BY top3_dates.`submission_date` DESC LIMIT 1) AS `review_time`,
+  
+  -- 修改阶段
+  CASE 
+    WHEN p.`update_date` > (SELECT MIN(n.`sent_at`) FROM `notifications` n WHERE n.`paper_id` = p.`paper_id` AND n.`notification_type` IN ('Review Assignment', 'Rejection Notification')) THEN 'finished'
+    ELSE 'processing'
+  END AS `revision_stage`,
+  CASE 
+    WHEN p.`update_date` > (SELECT MIN(n.`sent_at`) FROM `notifications` n WHERE n.`paper_id` = p.`paper_id` AND n.`notification_type` IN ('Review Assignment', 'Rejection Notification')) THEN p.`update_date`
+    ELSE NULL
+  END AS `revision_time`,
+  
+  -- 复审阶段
+  CASE 
+    WHEN (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id`) > 3 
+         AND (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NULL) = 0 THEN 'finished'
+    ELSE 'processing'
+  END AS `re_review_stage`,
+  (SELECT MAX(ra.`submission_date`) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id`) AS `re_review_time`,
+  
+  -- 录用阶段
+  CASE 
+    WHEN EXISTS (SELECT 1 FROM `notifications` n WHERE n.`paper_id` = p.`paper_id` AND n.`notification_type` = 'Acceptance Notification') THEN 'finished'
+    ELSE 'processing'
+  END AS `acceptance_stage`,
+  (SELECT n.`sent_at` FROM `notifications` n WHERE n.`paper_id` = p.`paper_id` AND n.`notification_type` = 'Acceptance Notification' LIMIT 1) AS `acceptance_time`,
+  
+  -- 支付版面费阶段
+  CASE 
+    WHEN (SELECT pa.`payment_date` FROM `payments` pa WHERE pa.`paper_id` = p.`paper_id`) IS NOT NULL THEN 'finished'
+    ELSE 'processing'
+  END AS `payment_stage`,
+  (SELECT pa.`payment_date` FROM `payments` pa WHERE pa.`paper_id` = p.`paper_id`) AS `payment_time`,
+  
+  -- 排期阶段
+  CASE 
+    WHEN EXISTS (SELECT 1 FROM `schedules` s WHERE s.`paper_id` = p.`paper_id`) THEN 'finished'
+    ELSE 'processing'
+  END AS `schedule_stage`,
+  NULL AS `schedule_time` -- 由于schedules表中没有明确的时间字段，设置为NULL
+FROM 
+  `papers` p;
+
 -- 5. 论文审稿意见视图（包含专家审稿意见）
 CREATE VIEW `paper_review_details` AS
 SELECT 

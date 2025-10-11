@@ -28,7 +28,7 @@ router.get('/search', authenticateToken, async (req, res) => {
 
 // 新增机构信息API
 // 接收并处理提交的机构信息，在institutions表中创建新记录
-router.post('/', authenticateToken, authorizeRole(['editor']), async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { name, city, zip_code } = req.body;
     

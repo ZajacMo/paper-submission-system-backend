@@ -161,6 +161,59 @@
   - 404: `{"message": "论文不存在"}`或`{"message": "附件不存在"}`
   - 500: `{"message": "文件下载失败"}`
 
+#### 获取论文审稿进度
+- **URL**: `/api/papers/:id/progress`
+- **Method**: `GET`
+- **Description**: 获取指定论文的审稿进度信息
+- **权限要求**: 作者（只能查看自己参与的论文）、专家、编辑
+- **请求参数**:
+  - URL参数: `id` (论文ID)
+  - Header: `Authorization`: Bearer JWT令牌
+- **成功响应**:
+  ```json
+  {
+    "paper_id": 1,
+    "title_zh": "论文标题(中文)",
+    "title_en": "Paper Title(English)",
+    "submission_status": "finished",
+    "submission_time": "2023-05-01 10:30:00",
+    "initial_review_status": "finished",
+    "initial_review_time": "2023-05-02 14:15:00",
+    "expert_assignment_status": "finished",
+    "expert_assignment_time": "2023-05-03 09:20:00",
+    "review_status": "finished",
+    "review_time": "2023-05-10 16:45:00",
+    "editing_status": "processing",
+    "editing_time": null,
+    "quality_check_status": "processing",
+    "quality_check_time": null,
+    "schedule_status": "processing",
+    "schedule_time": null,
+    "publication_status": "processing",
+    "publication_time": null
+  }
+  ```
+  - 每个阶段的状态值为"processing"(处理中)或"finished"(已完成)
+  - 完成时间仅在状态为"finished"时显示具体时间，否则为null
+- **失败响应**:
+  - 403: `{"message": "无权访问该论文的审稿进度"}`
+  - 404: `{"message": "未找到该论文的审稿进度"}`
+  - 500: `{"message": "查询失败"}`
+
+#### 获取作者所有论文的审稿进度
+- **URL**: `/api/papers/progress`
+- **Method**: `GET`
+- **Description**: 获取当前作者所有论文的审稿进度列表
+- **权限要求**: 仅作者角色
+- **请求参数**:
+  - Header: `Authorization`: Bearer JWT令牌
+- **成功响应**:
+  - 论文审稿进度对象数组，格式同"获取论文审稿进度"API的成功响应
+  - 按提交时间倒序排列
+- **失败响应**:
+  - 401: `{"message": "未授权"}`
+  - 500: `{"message": "查询失败"}`
+
 #### 审稿管理模块
 
 **分配审稿任务**
@@ -817,7 +870,7 @@ npm run dev     # 开发环境启动（使用nodemon）
 - 400: {"message": "请提供机构名称查询参数"}
 
 #### POST /api/institutions - 新增机构
-**权限要求：** 编辑角色
+**权限要求：** 所有角色
 
 **请求参数（Body）：**
 ```json

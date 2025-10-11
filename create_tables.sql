@@ -103,6 +103,7 @@ CREATE TABLE `papers` (
   `abstract_en` TEXT NOT NULL,
   `attachment_path` VARCHAR(500) NOT NULL,
   `submission_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `progress` ENUM('Processing','Finished') NOT NULL DEFAULT 'Processing',
   `integrity` ENUM('True', 'False', 'Waiting') NOT NULL DEFAULT 'Waiting',
   `check_time` DATETIME NULL,
