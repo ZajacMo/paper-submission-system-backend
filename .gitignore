@@ -56,6 +56,7 @@ Thumbs.db
 sqlite3.db
 *.sqlite
 论文管理数据/
+uploads
 
 # Package manager lock files (optional, depending on team preference)
 # package-lock.json

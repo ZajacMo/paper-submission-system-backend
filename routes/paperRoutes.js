@@ -2,6 +2,47 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 const { authenticateToken, authorizeRole } = require('../auth');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// 确保uploads目录存在
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// 配置multer存储
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const extension = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + extension);
+  }
+});
+
+// 创建multer上传实例
+const upload = multer({ 
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    // 仅允许特定的文件类型
+    const allowedTypes = /jpeg|jpg|png|pdf|doc|docx|ppt|pptx|xls|xlsx|zip/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('仅支持图片、文档、PDF和压缩文件！'));
+    }
+  },
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB限制
+  }
+});
 
 // 解析视图中的连接字符串数据的辅助函数
 function parseConcatenatedData(data, separator = '|', fieldSeparator = ':') {
@@ -154,6 +195,101 @@ router.get('/:id', authenticateToken, async (req, res) => {
     };
     
     res.json(detailedPaper);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 下载论文附件
+router.get('/:id/download', authenticateToken, async (req, res) => {
+  try {
+    const paperId = req.params.id;
+    
+    // 检查用户是否有权限下载该论文
+    if (req.user.role === 'author') {
+      const [authorCheck] = await pool.execute(
+        `SELECT COUNT(*) AS count 
+         FROM paper_authors_institutions 
+         WHERE paper_id = ? AND author_id = ?`,
+        [paperId, req.user.id]
+      );
+      
+      if (authorCheck[0].count === 0) {
+        return res.status(403).json({ message: '无权下载该论文' });
+      }
+    }
+    
+    // 获取论文信息，包括附件路径
+    const [papers] = await pool.execute(
+      'SELECT p.attachment_path, p.title_zh, p.title_en FROM papers p WHERE p.paper_id = ?',
+      [paperId]
+    );
+    
+    if (papers.length === 0) {
+      return res.status(404).json({ message: '论文不存在' });
+    }
+    
+    const paper = papers[0];
+    
+    // 检查是否有附件
+    if (!paper.attachment_path) {
+      return res.status(404).json({ message: '该论文没有附件' });
+    }
+    
+    // 构建文件的完整路径
+    const filePath = path.join(__dirname, '..', paper.attachment_path);
+    
+    // 检查文件是否存在
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: '附件文件不存在' });
+    }
+    
+    // 确定文件的MIME类型
+    const mimeType = require('mime-types').lookup(filePath) || 'application/octet-stream';
+    
+    // 设置响应头，提供文件下载
+    res.setHeader('Content-Type', mimeType);
+    
+    // 创建一个友好的下载文件名
+    const originalFilename = path.basename(filePath);
+    const extension = path.extname(filePath);
+    // 使用论文标题作为下载文件名，去除特殊字符
+    let downloadFilename = paper.title_zh || paper.title_en || '论文';
+    downloadFilename = downloadFilename.replace(/[\\/:*?"<>|]/g, '').trim();
+    downloadFilename += extension;
+    
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadFilename)}"`);
+    
+    // 流式传输文件
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error('下载文件错误:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// 上传论文附件
+router.post('/upload-attachment', authenticateToken, authorizeRole(['author']), upload.single('attachment'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: '未上传文件' });
+    }
+
+    // 获取文件的相对路径（相对于项目根目录）
+    const relativePath = path.join('uploads', req.file.filename);
+    
+    res.status(200).json({
+      message: '文件上传成功',
+      file: {
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        path: relativePath
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

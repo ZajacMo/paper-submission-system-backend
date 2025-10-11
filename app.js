@@ -9,6 +9,9 @@ const app = express();
 // 中间件
 app.use(cors());
 app.use(express.json());
+// 静态文件服务 - 允许访问上传的文件
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 测试数据库连接
 testConnection();
