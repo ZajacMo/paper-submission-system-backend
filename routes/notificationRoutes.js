@@ -20,13 +20,14 @@ router.get('/author', authenticateToken, authorizeRole(['author']), async (req, 
     
     // 构建论文ID列表
     const paperIds = paperIdsResult.map(row => row.paper_id);
+    // console.log('参与的论文ID:', paperIds);
     
     // 获取这些论文的所有通知
     const [notifications] = await pool.execute(
       `SELECT * FROM notifications 
-       WHERE paper_id IN (?) 
+       WHERE paper_id IN (${paperIds.map(() => '?').join(',')}) 
        ORDER BY sent_at DESC`,
-      [paperIds]
+      paperIds
     );
     
     res.json(notifications);

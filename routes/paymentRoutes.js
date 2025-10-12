@@ -123,11 +123,11 @@ router.post('/withdrawals', authenticateToken, authorizeRole(['expert']), async 
     }
     
     // 创建提现记录
-    await pool.execute(
-      `INSERT INTO withdrawals (assignment_id, expert_id, status)
-       VALUES (?, ?, FALSE)`,
-      [assignment_id, req.user.id]
-    );
+    // await pool.execute(
+    //   `INSERT INTO withdrawals (assignment_id, expert_id, status)
+    //    VALUES (?, ?, TRUE)`,
+    //   [assignment_id, req.user.id]
+    // );
     
     res.status(201).json({ message: '提现申请提交成功', assignment_id });
   } catch (error) {
