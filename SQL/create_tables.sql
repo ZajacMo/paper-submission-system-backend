@@ -279,6 +279,7 @@ CREATE TABLE `notifications` (
   `notification_type` ENUM('Review Assignment', 'Payment Confirmation', 'Acceptance Notification', 'Rejection Notification') NOT NULL,
   `sent_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `deadline` DATETIME,
+  `is_read` BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (`notification_id`),
   CONSTRAINT `fk_notifications_papers`
     FOREIGN KEY (`paper_id`)

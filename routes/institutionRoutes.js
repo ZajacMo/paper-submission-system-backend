@@ -211,38 +211,58 @@ router.delete('/expert/unlink/:institution_id', authenticateToken, authorizeRole
   }
 });
 
-// 获取当前用户关联的机构列表
+// 获取用户关联的机构列表
+// 支持查询当前登录用户或指定作者的机构信息
 router.get('/my', authenticateToken, async (req, res) => {
   try {
     const { id, role } = req.user;
+    const { author_id } = req.query; // 获取查询参数中的author_id
     let query, params;
     
-    switch (role) {
-      case 'author':
-        query = `
-          SELECT i.* FROM institutions i
-          JOIN author_institutions ai ON i.institution_id = ai.institution_id
-          WHERE ai.author_id = ?
-        `;
-        break;
-        
-      case 'expert':
-        query = `
-          SELECT i.* FROM institutions i
-          JOIN expert_institutions ei ON i.institution_id = ei.institution_id
-          WHERE ei.expert_id = ?
-        `;
-        break;
-        
-      case 'editor':
-        // 编辑没有机构关联
-        return res.json([]);
-        
-      default:
-        return res.status(400).json({ message: '无效的用户角色' });
+    // 如果提供了author_id参数
+    if (author_id) {
+      // 只有编辑或作者本人可以查询指定作者的机构信息
+      if (role !== 'editor' && id.toString() !== author_id) {
+        return res.status(403).json({ message: '无权查询该作者的机构信息' });
+      }
+      
+      // 查询指定作者的机构信息
+      query = `
+        SELECT i.* FROM institutions i
+        JOIN author_institutions ai ON i.institution_id = ai.institution_id
+        WHERE ai.author_id = ?
+      `;
+      params = [author_id];
+    } else {
+      // 否则查询当前登录用户的机构信息
+      switch (role) {
+        case 'author':
+          query = `
+            SELECT i.* FROM institutions i
+            JOIN author_institutions ai ON i.institution_id = ai.institution_id
+            WHERE ai.author_id = ?
+          `;
+          break;
+          
+        case 'expert':
+          query = `
+            SELECT i.* FROM institutions i
+            JOIN expert_institutions ei ON i.institution_id = ei.institution_id
+            WHERE ei.expert_id = ?
+          `;
+          break;
+          
+        case 'editor':
+          // 编辑没有机构关联
+          return res.json([]);
+          
+        default:
+          return res.status(400).json({ message: '无效的用户角色' });
+      }
+      
+      params = [id];
     }
     
-    params = [id];
     const [institutions] = await pool.execute(query, params);
     
     res.json(institutions);
