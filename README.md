@@ -285,7 +285,7 @@
 - **URL**: `/api/payments/withdrawals`
 - **Method**: `GET`
 - **Description**: 专家获取自己的提现记录
-- **Response**: `[{"assignment_id": "number", "paper_id": "number", "paper_title": "string", "amount": "number", "status": "boolean", "withdrawal_date": "datetime", "bank_account": "string", "bank_name": "string", "account_holder": "string"}]`
+- **Response**: `[{"assignment_id": "number", "expert_id": "number", "status": "boolean", "withdrawal_date": "datetime", "paper_id": "number", "paper_title_zh": "string", "paper_title_en": "string", "amount": "number"}]`
 
 **处理提现申请**
 - **URL**: `/api/payments/withdrawals/:assignment_id/status`

@@ -139,8 +139,7 @@ router.post('/withdrawals', authenticateToken, authorizeRole(['expert']), async 
 router.get('/withdrawals', authenticateToken, authorizeRole(['expert']), async (req, res) => {
   try {
     const [withdrawals] = await pool.execute(
-      `SELECT w.*, e.bank_account, e.bank_name, e.account_holder, 
-              ra.paper_id, p.title as paper_title, e.review_fee as amount 
+      `SELECT w.*, ra.paper_id, p.title_zh as paper_title_zh, p.title_en as paper_title_en, e.review_fee as amount 
        FROM withdrawals w 
        JOIN experts e ON w.expert_id = e.expert_id 
        JOIN review_assignments ra ON w.assignment_id = ra.assignment_id
