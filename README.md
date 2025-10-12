@@ -1,6 +1,8 @@
 # 论文投稿系统 - 数据库和后端设计
 
-本项目包含论文投稿系统的数据库设计和后端API实现。
+本项目是一个基于MySQL的论文投稿系统，包含数据库设计和后端API实现。
+
+[项目需求](./docs/需求.md)
 
 ## 项目结构
 
@@ -41,7 +43,9 @@
 ```
 
 ## 数据库设计
-[数据库设计文档](./docs/逻辑模型1010.md)
+
+[数据库逻辑模型档](./docs/逻辑模型1010.md)
+
 [ER图](./docs/ER图1009.pptx)
 
 ## 后端API
@@ -51,13 +55,14 @@
 - MySQL
 
 ### 功能模块
-1. 身份验证模块 - [API文档](./docs/API/authRoutes.md)
-2. 论文管理模块 - [API文档](./docs/API/paperRoutes.md)
-3. 审稿管理模块 - [API文档](./docs/API/reviewRoutes.md)
-4. 用户管理模块 - [API文档](./docs/API/userRoutes.md)
-5. 支付管理模块 - [API文档](./docs/API/paymentRoutes.md)
-6. 通知模块 - [API文档](./docs/API/notificationRoutes.md)
-7. 排期管理模块 - [API文档](./docs/API/scheduleRoutes.md)
+1. [身份验证模块](./docs/API/authRoutes.md)
+2. [论文管理模块](./docs/API/paperRoutes.md)
+3. [审稿管理模块](./docs/API/reviewRoutes.md)
+4. [用户管理模块](./docs/API/userRoutes.md)
+5. [支付管理模块](./docs/API/paymentRoutes.md)
+6. [通知模块](./docs/API/notificationRoutes.md)
+7. [排期管理模块](./docs/API/scheduleRoutes.md)
+8. [机构管理模块](./docs/API/institutionRoutes.md)
 
 ## 注意事项
 
