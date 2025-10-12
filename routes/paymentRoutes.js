@@ -126,8 +126,8 @@ router.post('/withdrawals', authenticateToken, authorizeRole(['expert']), async 
     const [result] = await pool.execute(
       `UPDATE withdrawals 
        SET status = 1, withdrawal_date = CURRENT_TIMESTAMP 
-       WHERE assignment_id = ? AND expert_id = ? AND status = 0`,
-      [assignment_id, req.user.id]
+       WHERE assignment_id = ? AND status = 0`,
+      [assignment_id]
     );
     
     if (result.affectedRows === 0) {
