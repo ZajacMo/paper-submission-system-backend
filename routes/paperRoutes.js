@@ -83,6 +83,28 @@ function parseFundsInfo(fundsInfo) {
   }));
 }
 
+
+// 获取当前用户所有论文的审稿进度（作者视角）
+router.get('/progress', authenticateToken, authorizeRole(['author']), async (req, res) => {
+  try {
+    const authorId = req.user.id;
+    
+    // 查询当前作者所有论文的审稿进度
+    const [progressList] = await pool.execute(
+      `SELECT prp.* FROM paper_review_progress prp
+       JOIN paper_authors_institutions pai ON prp.paper_id = pai.paper_id
+       WHERE pai.author_id = ?
+       ORDER BY prp.submission_time DESC`,
+      [authorId]
+    );
+    
+    res.json(progressList);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+
 // 获取所有论文（作者只能看自己的，编辑和专家可以看所有）
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -294,6 +316,7 @@ router.post('/upload-attachment', authenticateToken, authorizeRole(['author']), 
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // 提交新论文
 router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) => {
@@ -517,26 +540,6 @@ router.get('/:id/progress', authenticateToken, authorizeRole(['author', 'expert'
     }
     
     res.json(progress[0]);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// 获取当前用户所有论文的审稿进度（作者视角）
-router.get('/progress', authenticateToken, authorizeRole(['author']), async (req, res) => {
-  try {
-    const authorId = req.user.id;
-    
-    // 查询当前作者所有论文的审稿进度
-    const [progressList] = await pool.execute(
-      `SELECT prp.* FROM paper_review_progress prp
-       JOIN paper_authors_institutions pai ON prp.paper_id = pai.paper_id
-       WHERE pai.author_id = ?
-       ORDER BY prp.submission_time DESC`,
-      [authorId]
-    );
-    
-    res.json(progressList);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
