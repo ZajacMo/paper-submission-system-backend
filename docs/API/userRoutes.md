@@ -1,5 +1,14 @@
 # 用户管理模块
 
+## 根据输入的作者ID或姓名查询作者
+- **URL**: `/api/users/search`
+- **Method**: `GET`
+- **Description**: 根据输入的作者ID或姓名查询作者姓名
+- **Access**: 需要 author 角色权限
+- **Query Parameters**: `query` (作者ID或姓名)
+- **Success Response**: `{"author_id": "number", "name": "string"}`
+- **Error Response**: `{"message": "请输入作者ID或姓名"}` (400), `{"message": "作者不存在"}` (404), `{"message": "错误信息"}` (500)
+
 ## 获取个人信息
 - **URL**: `/api/users/profile`
 - **Method**: `GET`

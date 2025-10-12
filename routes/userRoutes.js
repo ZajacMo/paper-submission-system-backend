@@ -167,3 +167,33 @@ router.get('/experts', authenticateToken, authorizeRole(['editor']), async (req,
 });
 
 module.exports = router;
+
+//根据输入的作者ID或姓名查询作者
+router.get('/search', authenticateToken, authorizeRole(['author']), async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query) {
+      return res.status(400).json({ message: '请输入作者ID或姓名' });
+    }
+    
+    let user;
+    if (!isNaN(query)) {
+      // 假设ID是整数
+      const [authors] = await pool.execute('SELECT author_id, name FROM authors WHERE author_id = ?', [query]);
+      user = authors[0];
+    } else {
+      // 假设姓名是字符串
+      const [authors] = await pool.execute('SELECT author_id, name FROM authors WHERE name LIKE ?', [`%${query}%`]);
+      user = authors[0];
+    }
+    
+    if (!user) {
+      return res.status(404).json({ message: '作者不存在' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
