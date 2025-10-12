@@ -122,14 +122,19 @@ router.post('/withdrawals', authenticateToken, authorizeRole(['expert']), async 
       return res.status(400).json({ message: '请先完善银行账户信息' });
     }
     
-    // 创建提现记录
-    // await pool.execute(
-    //   `INSERT INTO withdrawals (assignment_id, expert_id, status)
-    //    VALUES (?, ?, TRUE)`,
-    //   [assignment_id, req.user.id]
-    // );
+    // 查找对应记录并更新状态和提现日期
+    const [result] = await pool.execute(
+      `UPDATE withdrawals 
+       SET status = 1, withdrawal_date = CURRENT_TIMESTAMP 
+       WHERE assignment_id = ? AND expert_id = ? AND status = 0`,
+      [assignment_id, req.user.id]
+    );
     
-    res.status(201).json({ message: '提现申请提交成功', assignment_id });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: '未找到可提现的记录' });
+    }
+    
+    res.status(200).json({ message: '提现申请提交成功', assignment_id });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -187,7 +192,7 @@ router.get('/admin/withdrawals', authenticateToken, authorizeRole(['editor']), a
   try {
     const [withdrawals] = await pool.execute(
       `SELECT w.*, e.name as expert_name, e.bank_account, e.bank_name, e.account_holder, 
-              ra.paper_id, p.title as paper_title, e.review_fee as amount 
+              ra.paper_id, p.title_zh as paper_title_zh, p.title_en as paper_title_en, e.review_fee as amount 
        FROM withdrawals w 
        JOIN experts e ON w.expert_id = e.expert_id 
        JOIN review_assignments ra ON w.assignment_id = ra.assignment_id

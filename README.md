@@ -279,13 +279,20 @@
 - **Method**: `POST`
 - **Description**: 专家提交审稿任务的提现申请
 - **Request Body**: `{"assignment_id": "number"}`
-- **Response**: `{"message": "string", "assignment_id": "number"}`
+- **成功响应** (200): `{"message": "string", "assignment_id": "number"}`
+- **错误响应**:
+  - 400: `{"message": "assignment_id是必需的"}` 或 `{"message": "该任务的提现申请已提交"}` 或 `{"message": "请先完善银行账户信息"}`
+  - 404: `{"message": "该审稿任务不存在或未完成"}` 或 `{"message": "专家信息不存在"}` 或 `{"message": "未找到可提现的记录"}`
+  - 500: `{"message": "错误信息"}`
 
 **获取专家提现记录**
 - **URL**: `/api/payments/withdrawals`
 - **Method**: `GET`
 - **Description**: 专家获取自己的提现记录
-- **Response**: `[{"assignment_id": "number", "expert_id": "number", "status": "boolean", "withdrawal_date": "datetime", "paper_id": "number", "paper_title_zh": "string", "paper_title_en": "string", "amount": "number"}]`
+- **成功响应** (200): `[{"assignment_id": "number", "expert_id": "number", "status": "boolean", "withdrawal_date": "datetime", "paper_id": "number", "paper_title_zh": "string", "paper_title_en": "string", "amount": "number"}]`
+- **错误响应**:
+  - 401: `{"message": "未授权"}`
+  - 500: `{"message": "查询失败"}`
 
 **处理提现申请**
 - **URL**: `/api/payments/withdrawals/:assignment_id/status`
@@ -819,10 +826,15 @@ npm run dev     # 开发环境启动（使用nodemon）
 
 **请求参数：**
 - Header: `Authorization`: Bearer JWT令牌
-- Body: `{"amount": "金额", "bank_account_id": "银行账户ID"}`
+- Body: `{"assignment_id": "审稿任务ID"}`
 
 **成功响应：**
-- 201: {"message": "提现申请提交成功", "withdrawal_id": "新提现ID"}
+- 200: {"message": "提现申请提交成功", "assignment_id": "审稿任务ID"}
+
+**错误响应：**
+- 400: {"message": "assignment_id是必需的"} 或 {"message": "该任务的提现申请已提交"} 或 {"message": "请先完善银行账户信息"}
+- 404: {"message": "该审稿任务不存在或未完成"} 或 {"message": "专家信息不存在"} 或 {"message": "未找到可提现的记录"}
+- 500: {"message": "错误信息"}
 
 #### GET /api/payments/withdrawals - 获取提现记录（仅专家）
 **权限要求：** 专家角色
