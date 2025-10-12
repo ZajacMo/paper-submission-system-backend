@@ -177,22 +177,22 @@ router.get('/search', authenticateToken, authorizeRole(['author']), async (req, 
       return res.status(400).json({ message: '请输入作者ID或姓名' });
     }
     
-    let user;
+    let author_list;
     if (!isNaN(query)) {
       // 假设ID是整数
-      const [authors] = await pool.execute('SELECT author_id, name FROM authors WHERE author_id = ?', [query]);
-      user = authors[0];
+      const [authors] = await pool.execute('SELECT author_id, name FROM authors WHERE CAST(author_id AS CHAR) LIKE ?', [`%${query}%`]);
+      author_list = authors;
     } else {
       // 假设姓名是字符串
       const [authors] = await pool.execute('SELECT author_id, name FROM authors WHERE name LIKE ?', [`%${query}%`]);
-      user = authors[0];
+      author_list = authors;
     }
     
-    if (!user) {
+    if (!author_list) {
       return res.status(404).json({ message: '作者不存在' });
     }
     
-    res.json(user);
+    res.json(author_list);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
