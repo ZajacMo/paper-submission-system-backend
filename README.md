@@ -58,7 +58,7 @@
 - **URL**: `/api/papers`
 - **Method**: `POST`
 - **Description**: 作者提交论文
-- **Request Body**: `{"title": "string", "abstract": "string", "keywords": "string", "content": "string", "fund_ids": ["number"], "author_institutions": [{"author_id": "number", "institution_id": "number"}]}`
+- **Request Body**: `{"title_zh": "string", "title_en": "string", "abstract_zh": "string", "abstract_en": "string", "attachment_path": "string", "authors": ["object"], "institutions": ["object"], "is_corresponding": "object", "keywords": "string", "funds": ["object"]}`
 - **Response**: `{"message": "string", "paper_id": "number"}`
 
 **获取论文列表**
@@ -86,7 +86,7 @@
 - **URL**: `/api/papers/:id`
 - **Method**: `PUT`
 - **Description**: 更新论文信息（作者只能更新部分字段，编辑/专家可更新更多字段）
-- **Request Body**: `{"title": "string", "abstract": "string", "keywords": "string", "content": "string"}`
+- **Request Body**: `{"title_zh": "string", "title_en": "string", "abstract_zh": "string", "abstract_en": "string", "attachment_path": "string", "progress": "string"}`
 - **Response**: `{"message": "string"}`
   
 #### 论文完整性检查
