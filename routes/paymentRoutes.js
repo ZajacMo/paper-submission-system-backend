@@ -187,9 +187,15 @@ router.put('/withdrawals/:assignment_id/status', authenticateToken, authorizeRol
   }
 });
 
-// 编辑获取所有提现记录
+// 编辑获取所有提现记录（分页）
 router.get('/admin/withdrawals', authenticateToken, authorizeRole(['editor']), async (req, res) => {
   try {
+    // 获取分页参数，默认第1页，每页10条记录
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // 查询当前页的数据
     const [withdrawals] = await pool.execute(
       `SELECT w.*, e.name as expert_name, e.bank_account, e.bank_name, e.account_holder, 
               ra.paper_id, p.title_zh as paper_title_zh, p.title_en as paper_title_en, e.review_fee as amount 
@@ -197,10 +203,33 @@ router.get('/admin/withdrawals', authenticateToken, authorizeRole(['editor']), a
        JOIN experts e ON w.expert_id = e.expert_id 
        JOIN review_assignments ra ON w.assignment_id = ra.assignment_id
        JOIN papers p ON ra.paper_id = p.paper_id
-       ORDER BY w.withdrawal_date DESC`
+       ORDER BY w.withdrawal_date DESC
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
     );
-    
-    res.json(withdrawals);
+
+    // 查询总记录数
+    const [totalResult] = await pool.execute(
+      `SELECT COUNT(*) as total 
+       FROM withdrawals w 
+       JOIN experts e ON w.expert_id = e.expert_id 
+       JOIN review_assignments ra ON w.assignment_id = ra.assignment_id
+       JOIN papers p ON ra.paper_id = p.paper_id`
+    );
+
+    const total = totalResult[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    // 返回包含分页信息的结果
+    res.json({
+      data: withdrawals,
+      pagination: {
+        currentPage: page,
+        pageSize: limit,
+        totalItems: total,
+        totalPages: totalPages
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

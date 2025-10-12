@@ -41,8 +41,27 @@
 - **Request Body**: `{"status": "boolean"}`
 - **Response**: `{"message": "string"}`
 
-## 获取所有提现记录
+## 获取所有提现记录（分页）
 - **URL**: `/api/payments/admin/withdrawals`
 - **Method**: `GET`
-- **Description**: 编辑获取所有提现记录
-- **Response**: `[{"assignment_id": "number", "expert_name": "string", "paper_id": "number", "paper_title": "string", "amount": "number", "status": "boolean", "withdrawal_date": "datetime", "bank_account": "string", "bank_name": "string", "account_holder": "string"}]`
+- **Description**: 编辑获取所有提现记录，支持分页
+- **URL参数**: 
+  - `page` (可选): 页码，默认为1
+  - `limit` (可选): 每页记录数，默认为10
+- **成功响应** (200): 
+  ```
+  {
+    "data": [
+      {"assignment_id": "number", "expert_name": "string", "paper_id": "number", "paper_title_zh": "string", "paper_title_en": "string", "amount": "number", "status": "boolean", "withdrawal_date": "datetime", "bank_account": "string", "bank_name": "string", "account_holder": "string"}
+    ],
+    "pagination": {
+      "currentPage": "number",
+      "pageSize": "number",
+      "totalItems": "number",
+      "totalPages": "number"
+    }
+  }
+  ```
+- **错误响应**:
+  - 401: `{"message": "未授权"}`
+  - 500: `{"message": "查询失败"}`
