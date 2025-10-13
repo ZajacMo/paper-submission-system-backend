@@ -25,6 +25,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const scheduleRoutes = require('./routes/scheduleRoutes');
 const institutionRoutes = require('./routes/institutionRoutes');
+const keywordRoutes = require('./routes/keywordRoutes');
 
 // API路由
 app.use('/api/auth', authRoutes);
@@ -35,6 +36,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/institutions', institutionRoutes);
+app.use('/api/keywords', keywordRoutes);
 
 // 健康检查端点
 app.get('/api/health', (req, res) => {

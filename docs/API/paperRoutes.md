@@ -5,35 +5,83 @@
 - **URL**: `/api/papers`
 - **Method**: `POST`
 - **Description**: 作者提交论文
-- **Request Body**: `{"title_zh": "string", "title_en": "string", "abstract_zh": "string", "abstract_en": "string", "attachment_path": "string", "authors": ["object"], "institutions": ["object"], "is_corresponding": "object", "keywords": "string", "funds": ["object"]}`
+- **Request Body**: 
+```json
+{
+  "title_zh": "string",
+  "title_en": "string",
+  "abstract_zh": "string",
+  "abstract_en": "string",
+  "keywords_zh_id": ["number"],
+  "keywords_en_id": ["number"],
+  "attachment_path": "string",
+  "authors": ["number"],
+  "institutions": ["number"],
+  "is_corresponding": ["boolean"],
+  "funds": ["number"]
+}
+```
 - **Response**: `{"message": "string", "paper_id": "number"}`
 
 ## 获取论文列表
 - **URL**: `/api/papers`
 - **Method**: `GET`
 - **Description**: 获取论文列表（根据用户角色返回不同范围的论文）
-- **Response**: `[{"paper_id": "number", "title": "string", "abstract": "string", "keywords": "string", "status": "string", "submission_date": "datetime"}]`
+- **Response**: 
+```json
+[{
+  "paper_id": "number", 
+  "title": "string", 
+  "abstract": "string", 
+  "keywords_zh": ["string"], 
+  "keywords_en": ["string"], 
+  "status": "string", 
+  "submission_date": "datetime"
+}]
+```
 
 ## 获取论文详情
 - **URL**: `/api/papers/:id`
 - **Method**: `GET`
 - **Description**: 获取论文详情
-- **Response**: `{
-    "paper_id": "number",
-    "title": "string",
-    "abstract": "string",
-    "keywords": "string",
-    "content": "string",
-    "status": "string",
-    "submission_date": "datetime",
-    "authors": ["object"],
-    "funds": ["object"]}`
+- **Response**: 
+```json
+{
+  "paper_id": "number",
+  "title": "string",
+  "abstract": "string",
+  "keywords_zh": ["string"],
+  "keywords_en": ["string"],
+  "content": "string",
+  "status": "string",
+  "submission_date": "datetime",
+  "authors": ["object"],
+  "institutions": ["object"],
+  "is_corresponding": ["boolean"],
+  "funds": ["object"]
+}
+```
 
 ## 更新论文 
 - **URL**: `/api/papers/:id`
 - **Method**: `PUT`
 - **Description**: 更新论文信息（作者只能更新部分字段，编辑/专家可更新更多字段）
-- **Request Body**: `{"title_zh": "string", "title_en": "string", "abstract_zh": "string", "abstract_en": "string", "attachment_path": "string", "progress": "string"}`
+- **Request Body**: 
+```json
+{
+  "title_zh": "string",
+  "title_en": "string",
+  "abstract_zh": "string",
+  "abstract_en": "string",
+  "keywords_zh_id": ["number"],
+  "keywords_en_id": ["number"],
+  "attachment_path": "string",
+  "authors": ["number"],
+  "institutions": ["number"],
+  "is_corresponding": ["boolean"],
+  "funds": ["number"]
+}
+```
 - **Response**: `{"message": "string"}`
   
 ## 论文完整性检查
@@ -41,7 +89,13 @@
 - **Method**: `PUT`
 - **Description**: 编辑检查并更新论文的完整性状态
 - **Request Body**: `{"is_complete": "boolean"}`
-- **Response**: `{"message": "string", "is_complete": "boolean"}`
+- **Response**: 
+```json
+{
+  "message": "string", 
+  "is_complete": "boolean"
+}
+```
 
 ## 上传论文附件
 - **URL**: `/api/papers/upload-attachment`

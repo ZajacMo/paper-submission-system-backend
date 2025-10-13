@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 const { authenticateToken, authorizeRole } = require('../auth');
+const { parseKeywordsInfo } = require('./keywordRoutes');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -64,14 +65,7 @@ function parseAuthorsInfo(authorsInfo) {
   }));
 }
 
-// 解析关键词信息
-function parseKeywordsInfo(keywordsInfo) {
-  if (!keywordsInfo) return [];
-  return parseConcatenatedData(keywordsInfo).map(fields => ({
-    keyword_id: fields[0],
-    keyword_name: fields[1]
-  }));
-}
+
 
 // 解析基金信息
 function parseFundsInfo(fundsInfo) {
@@ -179,7 +173,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
     
     // 解析作者、关键词和基金信息
     const authors = parseAuthorsInfo(paper.authors_info);
-    const keywords = parseKeywordsInfo(paper.keywords_info);
+    const { zh: keywords_zh, en: keywords_en } = parseKeywordsInfo(paper.keywords_info);
     const funds = parseFundsInfo(paper.funds_info);
     
     // 如果是作者或编辑，获取审稿意见
@@ -205,11 +199,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
       integrity: paper.integrity,
       check_time: paper.check_time,
       authors,
-      keywords,
+      keywords_zh,
+      keywords_en,
       funds,
       reviewComments,
       totalAuthors: authors.length,
-      totalKeywords: keywords.length,
+      totalKeywords: keywords_zh.length + keywords_en.length,
       totalFunds: funds.length,
       hasReviewComments: reviewComments.length > 0,
       status: paper.paper_status,
@@ -321,7 +316,7 @@ router.post('/upload-attachment', authenticateToken, authorizeRole(['author']), 
 // 提交新论文
 router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) => {
   try {
-    const { title_zh, title_en, abstract_zh, abstract_en, attachment_path, authors, institutions, is_corresponding, keywords, funds } = req.body;
+    const { title_zh, title_en, abstract_zh, abstract_en, keywords_zh_id, keywords_en_id, attachment_path, authors, institutions, is_corresponding,  funds } = req.body;
     
     // 验证附件路径格式（如果提供了）
     if (attachment_path) {
@@ -361,8 +356,19 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
       }
       
       // 处理关键词
-      if (keywords && keywords.length > 0) {
-        for (const keywordId of keywords) {
+      // 中文关键词
+      if (keywords_zh_id && keywords_zh_id.length > 0) {
+        for (const keywordId of keywords_zh_id) {
+          await connection.execute(
+            `INSERT INTO paper_keywords (paper_id, keyword_id) VALUES (?, ?)`,
+            [paperId, keywordId]
+          );
+        }
+      }
+      
+      // 英文关键词
+      if (keywords_en_id && keywords_en_id.length > 0) {
+        for (const keywordId of keywords_en_id) {
           await connection.execute(
             `INSERT INTO paper_keywords (paper_id, keyword_id) VALUES (?, ?)`,
             [paperId, keywordId]
@@ -400,7 +406,7 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const paperId = req.params.id;
-    const { title_zh, title_en, abstract_zh, abstract_en, attachment_path, progress } = req.body;
+    const { title_zh, title_en, abstract_zh, abstract_en, keywords_zh_id, keywords_en_id, attachment_path, progress } = req.body;
     
     // 验证附件路径格式（如果提供了）
     if (attachment_path) {
