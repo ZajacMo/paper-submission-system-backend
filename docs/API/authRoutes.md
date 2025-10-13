@@ -4,5 +4,19 @@
 - **URL**: `/api/auth/login`
 - **Method**: `POST`
 - **Description**: 用户登录，获取JWT令牌
-- **Request Body**: `{"email": "string", "password": "string", "role": "author/expert/editor"}`
-- **Response**: `{"token": "string", "userId": "number", "role": "string"}`
+- **Request Body**: 
+```json
+{
+    "email": "string",
+    "password": "string", 
+    "role": "author/expert/editor"
+}
+```
+- **Response**: 
+```json
+{
+    "token": "string", 
+    "userId": "number", 
+    "role": "string"
+}
+```

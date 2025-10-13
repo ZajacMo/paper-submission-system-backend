@@ -221,10 +221,6 @@ router.get('/my', authenticateToken, async (req, res) => {
     
     // 如果提供了author_id参数
     if (author_id) {
-      // 只有编辑或作者本人可以查询指定作者的机构信息
-      if (role !== 'editor' && id.toString() !== author_id) {
-        return res.status(403).json({ message: '无权查询该作者的机构信息' });
-      }
       
       // 查询指定作者的机构信息
       query = `
