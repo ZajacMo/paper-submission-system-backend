@@ -19,7 +19,9 @@
 ├── docs/                   # 文档目录
 │   ├── API/                # API文档
 │   │   ├── authRoutes.md
+│   │   ├── fundRoutes.md
 │   │   ├── institutionRoutes.md
+│   │   ├── keywordRoutes.md
 │   │   ├── notificationRoutes.md
 │   │   ├── paperRoutes.md
 │   │   ├── paymentRoutes.md
@@ -33,7 +35,9 @@
 ├── package.json            # 项目依赖
 └── routes/                 # API路由
     ├── authRoutes.js       # 身份验证路由
+    ├── fundRoutes.js       # 基金管理路由
     ├── institutionRoutes.js # 机构管理路由
+    ├── keywordRoutes.js    # 关键词管理路由
     ├── notificationRoutes.js # 通知管理路由
     ├── paperRoutes.js      # 论文管理路由
     ├── paymentRoutes.js    # 支付管理路由
@@ -63,6 +67,8 @@
 6. [通知模块](./docs/API/notificationRoutes.md)
 7. [排期管理模块](./docs/API/scheduleRoutes.md)
 8. [机构管理模块](./docs/API/institutionRoutes.md)
+9. [基金管理模块](./docs/API/fundRoutes.md)
+10. [关键词管理模块](./docs/API/keywordRoutes.md)
 
 ## 注意事项
 
