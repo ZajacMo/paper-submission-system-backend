@@ -71,16 +71,25 @@ INNER JOIN
 -- 4. 论文完整详情视图（包含作者、关键词、基金、审稿意见和状态等完整信息）
 CREATE VIEW `paper_full_details` AS
 SELECT 
-  p.*,
-  ps.`status` AS `paper_status`,
-  ps.`review_times`,
+  p.paper_id,
+  p.title_zh,
+  p.title_en,
+  p.abstract_zh,
+  p.abstract_en,
+  p.attachment_path,
+  p.submission_date,
+  p.update_date,
+  p.progress,
+  p.integrity,
+  p.check_time,
+  COUNT(DISTINCT ra.assignment_id) AS `review_times`,
   GROUP_CONCAT(DISTINCT CONCAT(a.`author_id`, ':', a.`name`, ':', i.`name`, ':', IF(pai.`is_corresponding`, '1', '0')) ORDER BY a.`author_id` ASC SEPARATOR '|') AS `authors_info`,
   GROUP_CONCAT(DISTINCT CONCAT(k.`keyword_id`, ':', k.`keyword_name`) SEPARATOR '|') AS `keywords_info`,
   GROUP_CONCAT(DISTINCT CONCAT(f.`fund_id`, ':', f.`project_name`, ':', f.`project_number`) SEPARATOR '|') AS `funds_info`
 FROM 
   `papers` p
-LEFT JOIN 
-  `paper_status` ps ON p.`paper_id` = ps.`paper_id`
+
+LEFT JOIN `review_assignments` ra ON p.`paper_id` = ra.`paper_id` AND ra.`submission_date` IS NOT NULL
 LEFT JOIN 
   `paper_authors_institutions` pai ON p.`paper_id` = pai.`paper_id`
 LEFT JOIN 
@@ -96,7 +105,17 @@ LEFT JOIN
 LEFT JOIN 
   `funds` f ON pf.`fund_id` = f.`fund_id`
 GROUP BY 
-  p.`paper_id`;
+  p.`paper_id`,
+  p.title_zh,
+  p.title_en,
+  p.abstract_zh,
+  p.abstract_en,
+  p.attachment_path,
+  p.submission_date,
+  p.update_date,
+  p.progress,
+  p.integrity,
+  p.check_time;
 
 -- 5. 论文审稿进度视图（向作者展示论文的各阶段审稿进度）
 CREATE VIEW `paper_review_progress` AS
@@ -118,27 +137,45 @@ SELECT
     WHEN (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NOT NULL) >= 3 THEN 'finished'
     ELSE 'processing'
   END AS `review_stage`,
-  (SELECT MIN(top3_dates.`submission_date`) FROM (
-    SELECT `submission_date` FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NOT NULL ORDER BY `submission_date` ASC LIMIT 3
-  ) AS top3_dates ORDER BY top3_dates.`submission_date` DESC LIMIT 1) AS `review_time`,
+  CASE
+    WHEN (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NOT NULL) >= 3
+    THEN (SELECT MIN(top3_dates.`submission_date`) FROM (
+      SELECT `submission_date` FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NOT NULL ORDER BY `submission_date` ASC LIMIT 3
+    ) AS top3_dates ORDER BY top3_dates.`submission_date` DESC LIMIT 1)
+    ELSE NULL
+  END AS `review_time`,
   
   -- 修改阶段
   CASE 
-    WHEN p.`update_date` > (SELECT MIN(n.`sent_at`) FROM `notifications` n WHERE n.`paper_id` = p.`paper_id` AND n.`notification_type` IN ('Review Assignment', 'Rejection Notification')) THEN 'finished'
+    WHEN p.`update_date` > (SELECT MIN(n.`sent_at`) FROM `notifications` n WHERE n.`paper_id` = p.`paper_id` AND n.`notification_type` IN ('Review Assignment')) THEN 'finished'
     ELSE 'processing'
   END AS `revision_stage`,
   CASE 
-    WHEN p.`update_date` > (SELECT MIN(n.`sent_at`) FROM `notifications` n WHERE n.`paper_id` = p.`paper_id` AND n.`notification_type` IN ('Review Assignment', 'Rejection Notification')) THEN p.`update_date`
+    WHEN p.`update_date` > (SELECT MIN(n.`sent_at`) FROM `notifications` n WHERE n.`paper_id` = p.`paper_id` AND n.`notification_type` IN ('Review Assignment')) THEN p.`update_date`
     ELSE NULL
   END AS `revision_time`,
   
   -- 复审阶段
   CASE 
-    WHEN (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id`) > 3 
-         AND (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NULL) = 0 THEN 'finished'
+    WHEN (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NOT NULL) >= 6 THEN 'finished'
     ELSE 'processing'
-  END AS `re_review_stage`,
-  (SELECT MAX(ra.`submission_date`) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id`) AS `re_review_time`,
+  END AS `re_review_stage1`,
+  CASE
+    WHEN (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NOT NULL) >= 6
+    THEN (SELECT ra.`submission_date` FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` ORDER BY ra.`submission_date` DESC LIMIT 5, 1)
+    ELSE NULL
+  END AS `re_review_time1`,
+  
+  
+  CASE 
+    WHEN (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NOT NULL) = 9 THEN 'finished'
+    ELSE 'processing'
+  END AS `re_review_stage2`,
+  CASE
+    WHEN (SELECT COUNT(*) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id` AND ra.`submission_date` IS NOT NULL) = 9
+    THEN (SELECT MAX(ra.`submission_date`) FROM `review_assignments` ra WHERE ra.`paper_id` = p.`paper_id`)
+    ELSE NULL
+  END AS `re_review_time2`,
   
   -- 录用阶段
   CASE 
@@ -159,7 +196,6 @@ SELECT
     WHEN EXISTS (SELECT 1 FROM `schedules` s WHERE s.`paper_id` = p.`paper_id`) THEN 'finished'
     ELSE 'processing'
   END AS `schedule_stage`,
-  NULL AS `schedule_time` -- 由于schedules表中没有明确的时间字段，设置为NULL
 FROM 
   `papers` p;
 

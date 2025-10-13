@@ -288,15 +288,3 @@ CREATE TABLE `notifications` (
     ON UPDATE CASCADE
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
--- 创建论文状态表 （status）
-CREATE TABLE `paper_status` (
-  `paper_id` INT NOT NULL,
-  `status` ENUM('Accept', 'Major Revision', 'Minor Revision', 'Reject', 'Not Reviewed') NOT NULL DEFAULT 'Not Reviewed',
-  `review_times` INT NOT NULL DEFAULT 0,
-  PRIMARY KEY (`paper_id`),
-  CONSTRAINT `fk_paper_status_papers`
-    FOREIGN KEY (`paper_id`)
-    REFERENCES `papers` (`paper_id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;

@@ -193,21 +193,19 @@ router.get('/:id', authenticateToken, async (req, res) => {
       title_en: paper.title_en,
       abstract_zh: paper.abstract_zh,
       abstract_en: paper.abstract_en,
-      attachment_path: paper.attachment_path,
+      keywords_zh,
+      keywords_en,
       submission_date: paper.submission_date,
       progress: paper.progress,
       integrity: paper.integrity,
       check_time: paper.check_time,
       authors,
-      keywords_zh,
-      keywords_en,
       funds,
       reviewComments,
       totalAuthors: authors.length,
       totalKeywords: keywords_zh.length + keywords_en.length,
       totalFunds: funds.length,
       hasReviewComments: reviewComments.length > 0,
-      status: paper.paper_status,
       reviewTimes: paper.review_times,
     };
     
@@ -316,7 +314,7 @@ router.post('/upload-attachment', authenticateToken, authorizeRole(['author']), 
 // 提交新论文
 router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) => {
   try {
-    const { title_zh, title_en, abstract_zh, abstract_en, keywords_zh_id, keywords_en_id, attachment_path, authors, institutions, is_corresponding,  funds } = req.body;
+    const { title_zh, title_en, abstract_zh, abstract_en, keywords_zh, keywords_en, keywords_new, attachment_path, authors, institutions, is_corresponding,  funds, funds_new } = req.body;
     
     // 验证附件路径格式（如果提供了）
     if (attachment_path) {
@@ -356,32 +354,53 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
       }
       
       // 处理关键词
-      // 中文关键词
-      if (keywords_zh_id && keywords_zh_id.length > 0) {
-        for (const keywordId of keywords_zh_id) {
+      // 处理新关键词
+      if (keywords_new && keywords_new.length > 0) {
+        for (const keyword of keywords_new) {
           await connection.execute(
-            `INSERT INTO paper_keywords (paper_id, keyword_id) VALUES (?, ?)`,
-            [paperId, keywordId]
+            `INSERT INTO keywords (keyword_name, keyword_type) VALUES (?, ?)`,
+            [keyword.name, keyword.type]
+          );
+        }
+      }
+
+      // 中文关键词
+      if (keywords_zh && keywords_zh.length > 0) {
+        for (const keyword of keywords_zh) {
+          await connection.execute(
+            `INSERT INTO paper_keywords (paper_id, keyword_name, keyword_type) VALUES (?, ?, ?)`,
+            [paperId, keyword, 'zh']
           );
         }
       }
       
       // 英文关键词
-      if (keywords_en_id && keywords_en_id.length > 0) {
-        for (const keywordId of keywords_en_id) {
+      if (keywords_en && keywords_en.length > 0) {
+        for (const keyword of keywords_en) {
           await connection.execute(
-            `INSERT INTO paper_keywords (paper_id, keyword_id) VALUES (?, ?)`,
-            [paperId, keywordId]
+            `INSERT INTO paper_keywords (paper_id, keyword_name, keyword_type) VALUES (?, ?, ?)`,
+            [paperId, keyword, 'en']
           );
         }
       }
       
       // 处理基金
-      if (funds && funds.length > 0) {
-        for (const fundId of funds) {
+      // 新建基金
+      if (funds_new && funds_new.length > 0) {
+        for (const fund of funds_new) {
           await connection.execute(
-            `INSERT INTO paper_funds (paper_id, fund_id) VALUES (?, ?)`,
-            [paperId, fundId]
+            `INSERT INTO funds (fund_name, fund_number) VALUES (?, ?)`,
+            [fund.name, fund.number]
+          );
+        }
+      }
+      
+      //创建关联
+      if (funds && funds.length > 0) {
+        for (const fund of funds) {
+          await connection.execute(
+            `INSERT INTO paper_funds (paper_id, fund_name) VALUES (?, ?)`,
+            [paperId, fund]
           );
         }
       }
@@ -406,7 +425,7 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const paperId = req.params.id;
-    const { title_zh, title_en, abstract_zh, abstract_en, keywords_zh_id, keywords_en_id, attachment_path, progress } = req.body;
+    const { title_zh, title_en, abstract_zh, abstract_en, keywords_zh, keywords_en, keywords_new, attachment_path, authors, institutions, is_corresponding, funds, funds_new, progress } = req.body;
     
     // 验证附件路径格式（如果提供了）
     if (attachment_path) {
@@ -434,48 +453,73 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
     
     // 检查用户是否有权限更新该论文
-    if (req.user.role === 'author') {
-      const [authorCheck] = await pool.execute(
-        `SELECT COUNT(*) AS count 
-         FROM paper_authors_institutions 
-         WHERE paper_id = ? AND author_id = ?`,
-        [paperId, req.user.id]
-      );
-      
-      if (authorCheck[0].count === 0) {
-        return res.status(403).json({ message: '无权更新该论文' });
-      }
-      
+    const [authorCheck] = await pool.execute(
+      `SELECT COUNT(*) AS count 
+        FROM paper_authors_institutions 
+        WHERE paper_id = ? AND author_id = ?`,
+      [paperId, req.user.id]
+    );
+    
+    if (authorCheck[0].count === 0) {
+      return res.status(403).json({ message: '无权更新该论文' });
+    }
+
+    // 获取数据库连接并开始事务
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+    
+    try {
       // 作者只能更新特定字段
-      const [result] = await pool.execute(
+      const [result] = await connection.execute(
         `UPDATE papers SET title_zh = ?, title_en = ?, abstract_zh = ?, abstract_en = ?, attachment_path = ?
-         WHERE paper_id = ?`,
+          WHERE paper_id = ?`,
         [title_zh, title_en, abstract_zh, abstract_en, attachment_path, paperId]
       );
-    } else {
-      // 编辑和专家可以更新更多字段
-      const [result] = await pool.execute(
-        `UPDATE papers SET title_zh = ?, title_en = ?, abstract_zh = ?, abstract_en = ?, attachment_path = ?, progress = ?
-         WHERE paper_id = ?`,
-        [title_zh, title_en, abstract_zh, abstract_en, attachment_path, progress, paperId]
+      
+      // 先删除该论文的所有现有作者关联
+      await connection.execute(
+        `DELETE FROM paper_authors_institutions WHERE paper_id = ?`,
+        [paperId]
       );
-    }
-    
-    // 如果提供了新的附件路径并且与旧的不同，则删除旧附件
-    if (oldAttachmentPath && attachment_path && oldAttachmentPath !== attachment_path) {
-      const oldFilePath = path.join(__dirname, '..', oldAttachmentPath);
-      try {
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
-          console.log(`旧附件已删除: ${oldFilePath}`);
+
+      // 然后重新添加所有作者关联
+      if (authors && authors.length > 0) {
+        for (let i = 0; i < authors.length; i++) {
+          await connection.execute(
+            `INSERT INTO paper_authors_institutions (paper_id, author_id, institution_id, is_corresponding)
+             VALUES (?, ?, ?, ?)`,
+            [paperId, authors[i], institutions && institutions[i] ? institutions[i] : null, is_corresponding && is_corresponding[i] ? is_corresponding[i] : false]
+          );
         }
-      } catch (deleteError) {
-        console.error('删除旧附件失败:', deleteError);
-        // 即使删除失败，也不影响论文更新的成功状态
+      };
+
+      
+
+      // 提交事务
+      await connection.commit();
+      connection.release();
+
+      // 如果提供了新的附件路径并且与旧的不同，则删除旧附件
+      if (oldAttachmentPath && attachment_path && oldAttachmentPath !== attachment_path) {
+        const oldFilePath = path.join(__dirname, '..', oldAttachmentPath);
+        try {
+          if (fs.existsSync(oldFilePath)) {
+            fs.unlinkSync(oldFilePath);
+            console.log(`旧附件已删除: ${oldFilePath}`);
+          }
+        } catch (deleteError) {
+          console.error('删除旧附件失败:', deleteError);
+          // 即使删除失败，也不影响论文更新的成功状态
+        }
       }
+      
+      res.json({ message: '论文更新成功' });
+    } catch (error) {
+      // 回滚事务
+      await connection.rollback();
+      connection.release();
+      throw error;
     }
-    
-    res.json({ message: '论文更新成功' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

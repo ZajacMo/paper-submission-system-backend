@@ -12,13 +12,21 @@
   "title_en": "string",
   "abstract_zh": "string",
   "abstract_en": "string",
-  "keywords_zh_id": ["number"],
-  "keywords_en_id": ["number"],
+  "keywords_zh": ["string"],
+  "keywords_en": ["string"],
+  "keywords_new":[{
+    "name": "string",
+    "type": "string" // "zh" or "en"
+  }],
   "attachment_path": "string",
   "authors": ["number"],
-  "institutions": ["number"],
+  "institutions": ["string"],
   "is_corresponding": ["boolean"],
-  "funds": ["number"]
+  "funds": ["string"],
+  "funds_new":[{
+    "name": "string",
+    "number": "string"
+  }]
 }
 ```
 - **Response**: `{"message": "string", "paper_id": "number"}`
@@ -31,8 +39,10 @@
 ```json
 [{
   "paper_id": "number", 
-  "title": "string", 
-  "abstract": "string", 
+  "title_zh": "string", 
+  "title_en": "string", 
+  "abstract_zh": "string", 
+  "abstract_en": "string", 
   "keywords_zh": ["string"], 
   "keywords_en": ["string"], 
   "status": "string", 
@@ -48,17 +58,24 @@
 ```json
 {
   "paper_id": "number",
-  "title": "string",
-  "abstract": "string",
+  "title_zh": "string",
+  "title_en": "string",
+  "abstract_zh": "string",
+  "abstract_en": "string",
   "keywords_zh": ["string"],
   "keywords_en": ["string"],
-  "content": "string",
-  "status": "string",
   "submission_date": "datetime",
+  "progress": "string",
+  "integrity": "string",
+  "check_time": "datetime",
   "authors": ["object"],
-  "institutions": ["object"],
-  "is_corresponding": ["boolean"],
-  "funds": ["object"]
+  "funds": ["object"],
+  "reviewComments": ["object"],
+  "totalAuthors": "number",
+  "totalKeywords": "number",
+  "totalFunds": "number",
+  "hasReviewComments": "boolean",
+  "reviewTimes": "number"
 }
 ```
 
@@ -73,13 +90,21 @@
   "title_en": "string",
   "abstract_zh": "string",
   "abstract_en": "string",
-  "keywords_zh_id": ["number"],
-  "keywords_en_id": ["number"],
+  "keywords_zh": ["string"],
+  "keywords_en": ["string"],
+  "keywords_new":[{
+    "name": "string",
+    "type": "string" // "zh" or "en"
+  }],
   "attachment_path": "string",
   "authors": ["number"],
-  "institutions": ["number"],
+  "institutions": ["string"],
   "is_corresponding": ["boolean"],
-  "funds": ["number"]
+  "funds": ["string"],
+  "funds_new":[{
+    "name": "string",
+    "number": "string"
+  }]
 }
 ```
 - **Response**: `{"message": "string"}`
@@ -176,22 +201,33 @@
     "paper_id": 1,
     "title_zh": "论文标题(中文)",
     "title_en": "Paper Title(English)",
-    "submission_status": "finished",
+    
+    "submission_stage": "finished",
     "submission_time": "2023-05-01 10:30:00",
-    "initial_review_status": "finished",
+    
+    "initial_review_stage": "finished",
     "initial_review_time": "2023-05-02 14:15:00",
-    "expert_assignment_status": "finished",
-    "expert_assignment_time": "2023-05-03 09:20:00",
-    "review_status": "finished",
+    
+    "review_stage": "finished",
     "review_time": "2023-05-10 16:45:00",
-    "editing_status": "processing",
-    "editing_time": null,
-    "quality_check_status": "processing",
-    "quality_check_time": null,
-    "schedule_status": "processing",
-    "schedule_time": null,
-    "publication_status": "processing",
-    "publication_time": null
+    
+    "revision_stage": "processing",
+    "revision_time": null,
+    
+    "re_review_stage1": "processing",
+    "re_review_time1": null,
+    
+    "re_review_stage2": "processing",
+    "re_review_time2": null,
+    
+    "acceptance_stage": "processing",
+    "acceptance_time": null,
+    
+    "payment_stage": "processing",
+    "payment_time": null,
+    
+    "schedule_stage": "processing",
+    "schedule_time": null
   }
   ```
   - 每个阶段的状态值为"processing"(处理中)或"finished"(已完成)
@@ -210,7 +246,7 @@
   - Header: `Authorization`: Bearer JWT令牌
 - **成功响应**:
   - 论文审稿进度对象数组，格式同"获取论文审稿进度"API的成功响应
-  - 按提交时间倒序排列
+  - 按提交时间（submission_time）倒序排列
 - **失败响应**:
   - 401: `{"message": "未授权"}`
   - 500: `{"message": "查询失败"}`
