@@ -35,6 +35,16 @@
 - **URL**: `/api/papers`
 - **Method**: `GET`
 - **Description**: 获取论文列表（根据用户角色返回不同范围的论文）
+- **Authorization**: 需要 JWT 令牌
+- **Query Parameters**:
+  - `id` (number): 按论文ID精确搜索（优先，若有则不考虑其他）
+  - `progress` (string): 按论文进度过滤
+  - `search` (string): 搜索关键词，会在标题（中、英文）和摘要（中、英文）中进行模糊搜索（当指定了id参数时，此参数将被忽略）
+  - `sortBy` (string): 排序字段，可选值：submission_date, title_zh, title_en, progress，默认值为 submission_date
+  - `sortOrder` (string): 排序顺序，可选值：ASC, DESC，默认值为 DESC
+- **Access Control**:
+  - 作者：只能查看自己参与的论文
+  - 编辑和专家：可以查看所有论文
 - **Response**: 
 ```json
 [{
@@ -43,9 +53,10 @@
   "title_en": "string", 
   "abstract_zh": "string", 
   "abstract_en": "string", 
-  "keywords_zh": ["string"], 
-  "keywords_en": ["string"], 
-  "status": "string", 
+  "attachment_path": "string",
+  "progress": "string",
+  "integrity": "string",
+  "check_time": "datetime",
   "submission_date": "datetime"
 }]
 ```

@@ -103,7 +103,7 @@ router.get('/progress', authenticateToken, authorizeRole(['author']), async (req
 router.get('/', authenticateToken, async (req, res) => {
   try {
     let query, params = [];
-    const { progress, search, sortBy = 'submission_date', sortOrder = 'DESC' } = req.query;
+    const { progress, search, id, sortBy = 'submission_date', sortOrder = 'DESC' } = req.query;
     
     if (req.user.role === 'author') {
       // 使用作者可访问论文视图
@@ -122,7 +122,12 @@ router.get('/', authenticateToken, async (req, res) => {
       params.push(progress);
     }
     
-    if (search) {
+    if (id) {
+      query += ' AND paper_id = ?';
+      params.push(id);
+    }
+    
+    if (search && !id) { // 如果指定了ID搜索，则不执行模糊搜索
       query += ` AND (title_zh LIKE ? OR title_en LIKE ? OR abstract_zh LIKE ? OR abstract_en LIKE ?)`;
       const searchParam = `%${search}%`;
       params.push(searchParam, searchParam, searchParam, searchParam);
