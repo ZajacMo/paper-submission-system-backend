@@ -493,7 +493,69 @@ router.put('/:id', authenticateToken, async (req, res) => {
         }
       };
 
+      // 处理关键词
+      // 先删除该论文的所有现有关键词关联
+      await connection.execute(
+        `DELETE FROM paper_keywords WHERE paper_id = ?`,
+        [paperId]
+      );
+
+      // 处理新关键词
+      if (keywords_new && keywords_new.length > 0) {
+        for (const keyword of keywords_new) {
+          await connection.execute(
+            `INSERT INTO keywords (keyword_name, keyword_type) VALUES (?, ?)`,
+            [keyword.name, keyword.type]
+          );
+        }
+      }
+
+      // 中文关键词
+      if (keywords_zh && keywords_zh.length > 0) {
+        for (const keyword of keywords_zh) {
+          await connection.execute(
+            `INSERT INTO paper_keywords (paper_id, keyword_name, keyword_type) VALUES (?, ?, ?)`,
+            [paperId, keyword, 'zh']
+          );
+        }
+      }
       
+      // 英文关键词
+      if (keywords_en && keywords_en.length > 0) {
+        for (const keyword of keywords_en) {
+          await connection.execute(
+            `INSERT INTO paper_keywords (paper_id, keyword_name, keyword_type) VALUES (?, ?, ?)`,
+            [paperId, keyword, 'en']
+          );
+        }
+      }
+
+      // 处理基金
+      // 先删除该论文的所有现有基金关联
+      await connection.execute(
+        `DELETE FROM paper_funds WHERE paper_id = ?`,
+        [paperId]
+      );
+
+      // 处理新基金
+      if (funds_new && funds_new.length > 0) {
+        for (const fund of funds_new) {
+          await connection.execute(
+            `INSERT INTO funds (fund_name, fund_number) VALUES (?, ?)`,
+            [fund.name, fund.number]
+          );
+        }
+      }
+      
+      // 创建基金关联
+      if (funds && funds.length > 0) {
+        for (const fund of funds) {
+          await connection.execute(
+            `INSERT INTO paper_funds (paper_id, fund_name) VALUES (?, ?)`,
+            [paperId, fund]
+          );
+        }
+      }
 
       // 提交事务
       await connection.commit();
