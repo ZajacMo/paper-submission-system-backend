@@ -71,6 +71,37 @@ router.get('/', authenticateToken, authorizeRole(['author']), async (req, res) =
   }
 });
 
+
+/**
+ * 搜索基金
+ * 作者用户可以根据项目名称或编号搜索基金
+ */
+router.get('/search', authenticateToken, authorizeRole(['author']), async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    if (!query) {
+      return res.status(400).json({ message: '搜索关键词不能为空' });
+    }
+
+    // 搜索与作者关联的基金
+    const [funds] = await pool.execute(
+      `SELECT DISTINCT f.fund_id, f.project_name, f.project_number 
+       FROM funds f 
+       LEFT JOIN paper_funds pf ON f.fund_id = pf.fund_id 
+       LEFT JOIN papers p ON pf.paper_id = p.paper_id 
+       WHERE f.project_name LIKE ? OR f.project_number LIKE ? 
+       ORDER BY f.project_name`,
+      [`%${query}%`, `%${query}%`]
+    );
+
+    res.status(200).json(funds);
+  } catch (error) {
+    console.error('搜索基金失败:', error);
+    res.status(500).json({ message: '服务器错误，搜索基金失败' });
+  }
+});
+
 /**
  * 根据ID查询基金详情
  * 作者用户可以查询特定基金的详细信息
@@ -98,39 +129,6 @@ router.get('/:fundId', authenticateToken, authorizeRole(['author']), async (req,
   } catch (error) {
     console.error('查询基金详情失败:', error);
     res.status(500).json({ message: '服务器错误，查询基金详情失败' });
-  }
-});
-
-
-/**
- * 搜索基金
- * 作者用户可以根据项目名称或编号搜索基金
- */
-router.get('/search', authenticateToken, authorizeRole(['author']), async (req, res) => {
-  try {
-    const { query } = req.query;
-    const user_id = req.user.id;
-
-    if (!query) {
-      return res.status(400).json({ message: '搜索关键词不能为空' });
-    }
-
-    // 搜索与作者关联的基金
-    const [funds] = await pool.execute(
-      `SELECT DISTINCT f.fund_id, f.project_name, f.project_number 
-       FROM funds f 
-       LEFT JOIN paper_funds pf ON f.fund_id = pf.fund_id 
-       LEFT JOIN papers p ON pf.paper_id = p.paper_id 
-       WHERE p.author_id = ? AND 
-             (f.project_name LIKE ? OR f.project_number LIKE ?) 
-       ORDER BY f.project_name`,
-      [user_id, `%${query}%`, `%${query}%`]
-    );
-
-    res.status(200).json(funds);
-  } catch (error) {
-    console.error('搜索基金失败:', error);
-    res.status(500).json({ message: '服务器错误，搜索基金失败' });
   }
 });
 

@@ -84,7 +84,9 @@ SELECT
   p.check_time,
   COUNT(DISTINCT ra.assignment_id) AS `review_times`,
   GROUP_CONCAT(DISTINCT CONCAT(a.`author_id`, ':', a.`name`, ':', i.`name`, ':', IF(pai.`is_corresponding`, '1', '0')) ORDER BY a.`author_id` ASC SEPARATOR '|') AS `authors_info`,
-  GROUP_CONCAT(DISTINCT CONCAT(k.`keyword_id`, ':', k.`keyword_name`) SEPARATOR '|') AS `keywords_info`,
+  -- GROUP_CONCAT(DISTINCT CONCAT(k.`keyword_id`, ':', k.`keyword_name`, ':', k.`keyword_type`) SEPARATOR '|') AS `keywords_info`,
+  GROUP_CONCAT(DISTINCT CASE WHEN k.`keyword_type` = 'zh' THEN CONCAT(k.`keyword_id`, ':', k.`keyword_name`) END ORDER BY k.`keyword_id` ASC SEPARATOR '|') AS `keywords_zh`,
+  GROUP_CONCAT(DISTINCT CASE WHEN k.`keyword_type` = 'en' THEN CONCAT(k.`keyword_id`, ':', k.`keyword_name`) END ORDER BY k.`keyword_id` ASC SEPARATOR '|') AS `keywords_en`,
   GROUP_CONCAT(DISTINCT CONCAT(f.`fund_id`, ':', f.`project_name`, ':', f.`project_number`) SEPARATOR '|') AS `funds_info`
 FROM 
   `papers` p

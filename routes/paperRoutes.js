@@ -178,7 +178,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
     
     // 解析作者、关键词和基金信息
     const authors = parseAuthorsInfo(paper.authors_info);
-    const { zh: keywords_zh, en: keywords_en } = parseKeywordsInfo(paper.keywords_info);
+    // const { zh: keywords_zh, en: keywords_en } = parseKeywordsInfo(paper.keywords_info);
+    const keywords_zh = parseConcatenatedData(paper.keywords_zh, '|', ':');
+    const keywords_en = parseConcatenatedData(paper.keywords_en, '|', ':');
+
     const funds = parseFundsInfo(paper.funds_info);
     
     // 如果是作者或编辑，获取审稿意见
@@ -320,12 +323,12 @@ router.post('/upload-attachment', authenticateToken, authorizeRole(['author']), 
 router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) => {
   try {
     const { title_zh, title_en, abstract_zh, abstract_en, keywords_zh, keywords_en, keywords_new, attachment_path, authors, institutions, is_corresponding,  funds, funds_new } = req.body;
-    
+    // console.log(req.body);
     // 验证附件路径格式（如果提供了）
     if (attachment_path) {
       // 检查附件路径是否以'uploads/'开头
-      if (!attachment_path.startsWith('uploads/')) {
-        return res.status(400).json({ message: '附件路径格式不正确，必须以uploads/开头' });
+      if (!attachment_path.startsWith('uploads')) {
+        return res.status(400).json({ message: '附件路径格式不正确，必须以uploads开头' });
       }
       
       // 检查附件文件是否存在
@@ -340,11 +343,11 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
     await connection.beginTransaction();
     
     try {
-      // 插入论文基本信息
+      // 插入论文基本信息 - 确保undefined参数转换为null
       const [paperResult] = await connection.execute(
         `INSERT INTO papers (title_zh, title_en, abstract_zh, abstract_en, attachment_path)
          VALUES (?, ?, ?, ?, ?)`,
-        [title_zh, title_en, abstract_zh, abstract_en, attachment_path]
+        [title_zh ?? null, title_en ?? null, abstract_zh ?? null, abstract_en ?? null, attachment_path ?? null]
       );
       
       const paperId = paperResult.insertId;
@@ -354,7 +357,7 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
         await connection.execute(
           `INSERT INTO paper_authors_institutions (paper_id, author_id, institution_id, is_corresponding)
            VALUES (?, ?, ?, ?)`,
-          [paperId, authors[i], institutions[i], is_corresponding[i]]
+          [paperId, authors[i] ?? null, institutions[i] ?? null, is_corresponding[i] ?? null]
         );
       }
       
@@ -364,7 +367,7 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
         for (const keyword of keywords_new) {
           await connection.execute(
             `INSERT INTO keywords (keyword_name, keyword_type) VALUES (?, ?)`,
-            [keyword.name, keyword.type]
+            [keyword.name ?? null, keyword.type ?? null]
           );
         }
       }
@@ -373,8 +376,8 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
       if (keywords_zh && keywords_zh.length > 0) {
         for (const keyword of keywords_zh) {
           await connection.execute(
-            `INSERT INTO paper_keywords (paper_id, keyword_name, keyword_type) VALUES (?, ?, ?)`,
-            [paperId, keyword, 'zh']
+            `INSERT INTO paper_keywords (paper_id, keyword_id) VALUES (?, (SELECT keyword_id FROM keywords WHERE keyword_name = ? AND keyword_type = 'zh'))`,
+            [paperId, keyword ?? null]
           );
         }
       }
@@ -383,8 +386,8 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
       if (keywords_en && keywords_en.length > 0) {
         for (const keyword of keywords_en) {
           await connection.execute(
-            `INSERT INTO paper_keywords (paper_id, keyword_name, keyword_type) VALUES (?, ?, ?)`,
-            [paperId, keyword, 'en']
+            `INSERT INTO paper_keywords (paper_id, keyword_id) VALUES (?, (SELECT keyword_id FROM keywords WHERE keyword_name = ? AND keyword_type = 'en'))`,
+            [paperId, keyword ?? null]
           );
         }
       }
@@ -394,8 +397,8 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
       if (funds_new && funds_new.length > 0) {
         for (const fund of funds_new) {
           await connection.execute(
-            `INSERT INTO funds (fund_name, fund_number) VALUES (?, ?)`,
-            [fund.name, fund.number]
+            `INSERT INTO funds (project_name, project_number) VALUES (?, ?)`,
+            [fund.name ?? null, fund.number ?? null]
           );
         }
       }
@@ -404,8 +407,8 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
       if (funds && funds.length > 0) {
         for (const fund of funds) {
           await connection.execute(
-            `INSERT INTO paper_funds (paper_id, fund_name) VALUES (?, ?)`,
-            [paperId, fund]
+            `INSERT INTO paper_funds (paper_id, fund_id) VALUES (?, (SELECT fund_id FROM funds WHERE project_name = ?))`,
+            [paperId, fund ?? null]
           );
         }
       }
@@ -423,6 +426,7 @@ router.post('/', authenticateToken, authorizeRole(['author']), async (req, res) 
     }
   } catch (error) {
     res.status(500).json({ message: error.message });
+    throw error;
   }
 });
 
@@ -435,7 +439,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     // 验证附件路径格式（如果提供了）
     if (attachment_path) {
       // 检查附件路径是否以'uploads/'开头
-      if (!attachment_path.startsWith('uploads/')) {
+      if (!attachment_path.startsWith('uploads')) {
         return res.status(400).json({ message: '附件路径格式不正确，必须以uploads/开头' });
       }
       
