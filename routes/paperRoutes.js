@@ -524,8 +524,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       if (keywords_zh && keywords_zh.length > 0) {
         for (const keyword of keywords_zh) {
           await connection.execute(
-            `INSERT INTO paper_keywords (paper_id, keyword_name, keyword_type) VALUES (?, ?, ?)`,
-            [paperId, keyword, 'zh']
+            `INSERT INTO paper_keywords (paper_id, keyword_id) VALUES (?, (SELECT keyword_id FROM keywords WHERE keyword_name = ? AND keyword_type = 'zh'))`,
+            [paperId, keyword]
           );
         }
       }
@@ -534,8 +534,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       if (keywords_en && keywords_en.length > 0) {
         for (const keyword of keywords_en) {
           await connection.execute(
-            `INSERT INTO paper_keywords (paper_id, keyword_name, keyword_type) VALUES (?, ?, ?)`,
-            [paperId, keyword, 'en']
+            `INSERT INTO paper_keywords (paper_id, keyword_id) VALUES (?, (SELECT keyword_id FROM keywords WHERE keyword_name = ? AND keyword_type = 'en'))`,
+            [paperId, keyword]
           );
         }
       }
@@ -561,7 +561,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       if (funds && funds.length > 0) {
         for (const fund of funds) {
           await connection.execute(
-            `INSERT INTO paper_funds (paper_id, fund_name) VALUES (?, ?)`,
+            `INSERT INTO paper_funds (paper_id, fund_id) VALUES (?, (SELECT fund_id FROM funds WHERE project_name = ?))`,
             [paperId, fund]
           );
         }
@@ -593,6 +593,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       throw error;
     }
   } catch (error) {
+    console.error('更新论文失败:', error);
     res.status(500).json({ message: error.message });
   }
 });
