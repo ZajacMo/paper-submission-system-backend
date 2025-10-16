@@ -56,13 +56,7 @@ CREATE TABLE `experts` (
   `account_holder` VARCHAR(100) NULL,
   `review_fee` DECIMAL(10, 2) NOT NULL,
   PRIMARY KEY (`expert_id`),
-  UNIQUE INDEX `email_UNIQUE` (`email` ASC),
-  INDEX `fk_experts_institutions_idx` (`institution_id` ASC),
-  CONSTRAINT `fk_experts_institutions`
-    FOREIGN KEY (`institution_id`)
-    REFERENCES `institutions` (`institution_id`)
-    ON DELETE CASCADE
-    ON UPDATE CASCADE
+  UNIQUE INDEX `email_UNIQUE` (`email` ASC)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 -- 创建专家就职表 (expert_institutions)
