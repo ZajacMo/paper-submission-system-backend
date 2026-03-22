@@ -28,7 +28,7 @@ services:
     container_name: paper-submission-server
     environment:
       NODE_ENV: production
-      DB_HOST: host.docker.internal
+      DB_HOST: db
       DB_USER: Zajac
       DB_PASSWORD: 12345
       DB_NAME: paper_submission_system
@@ -37,9 +37,8 @@ services:
       JWT_EXPIRES_IN: 24h
     ports:
       - 5000:5000
-    # 允许容器访问主机上的服务
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - db
     # 挂载volume用于文件上传
     volumes:
       - submitted-papers:/var/lib/submitted_papers
