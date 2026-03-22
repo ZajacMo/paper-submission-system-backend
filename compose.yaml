@@ -9,11 +9,11 @@
 # https://github.com/docker/awesome-compose
 services:
   client:
-    image: paper-submission-system-client
+    image: paper-submission-client
     build:
       context: ./client
       dockerfile: Containerfile
-    container_name: paper-submission-system-client
+    container_name: paper-submission-client
     ports:
       - 21743:80
     # 允许容器访问主机上的服务
@@ -21,11 +21,11 @@ services:
       - "host.docker.internal:host-gateway"
 
   server:
-    image: paper-submission-system-server
+    image: paper-submission-server
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: paper-submission-system-server
+    container_name: paper-submission-server
     environment:
       NODE_ENV: production
       DB_HOST: host.docker.internal
@@ -44,8 +44,18 @@ services:
     volumes:
       - submitted-papers:/var/lib/submitted_papers
   
+  db:
+    image: mysql:9.5.0
+    container_name: paper-submission-db
+    environment:
+      MYSQL_ROOT_PASSWORD: 12345
+      MYSQL_USER: Zajac
+      MYSQL_PASSWORD: 12345
+      MYSQL_DATABASE: paper_submission_system
+    volumes:
+      - mysql:/var/lib/mysql
 
 # 定义volume
 volumes:
   submitted-papers:
-  
+  mysql:
