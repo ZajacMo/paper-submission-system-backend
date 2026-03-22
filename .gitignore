@@ -66,3 +66,6 @@ SQL/Script.sql
 # pnpm-lock.yaml
 *~*
 **论文投稿系统.pptx
+.idea/
+.github/
+.devcontainer/
